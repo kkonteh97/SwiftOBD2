@@ -7,9 +7,7 @@ let package = Package(
     name: "SwiftOBD2",
     platforms: [
         .iOS(.v14),
-        .macOS(.v12),
-        .watchOS(.v8),
-        .tvOS(.v15)
+        .macOS(.v12)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.

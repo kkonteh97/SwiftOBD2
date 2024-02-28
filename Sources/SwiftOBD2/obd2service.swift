@@ -1,105 +1,81 @@
-//
-//  SettingsScreenViewModel.swift
-//  SmartOBD2
-//
-//  Created by kemo konteh on 8/31/23.
-//
+// MARK: - OBDService Documentation
+/// A class that provides an interface to the ELM327 OBD2 adapter and the vehicle.
+///
+/// **Key Responsibilities:**
+/// - Establishing a connection to the adapter and the vehicle.
+/// - Sending and receiving OBD2 commands.
+/// - Providing information about the vehicle.
+/// - Managing the connection state.
 
 import Foundation
-import CoreBluetooth
 import Combine
 
-struct VINResults: Codable {
-    let Results: [VINInfo]
-}
-
-struct VINInfo: Codable, Hashable {
-    let Make: String
-    let Model: String
-    let ModelYear: String
-    let EngineCylinders: String
+public enum connectionType {
+    case bluetooth
+    case wifi
 }
 
 public class OBDService: ObservableObject {
     @Published var connectedPeripheral: CBPeripheralProtocol? = nil
-    @Published public var connectionState: ConnectionState = .disconnected
-    @Published var foundPeripherals: [Peripheral]?
-
-    let setupOrder: [OBDCommand.General] = [.ATD, .ATZ, .ATL0, .ATE0, .ATH1, .ATAT1, .ATRV, .ATDPN]
     var elm327: ELM327
-    let bleManager: BLEManager
 
-    var cancellables = Set<AnyCancellable>()
-
-    public init() {
-        self.bleManager = BLEManager()
-        self.elm327 = ELM327(bleManager: bleManager)
-
-        bleManager.$connectionState
-            .sink { [weak self] state in
-                self?.connectionState = state
-            }
-            .store(in: &cancellables)
-
-        bleManager.$foundPeripherals
-            .sink { [weak self] peripherals in
-                self?.foundPeripherals = peripherals
-            }
-            .store(in: &cancellables)
+    public var connectionState: ConnectionState {
+        return elm327.connectionState
     }
+
+    public init(connectionType: connectionType = .bluetooth) {
+        switch connectionType {
+        case .bluetooth:
+            self.elm327 = ELM327(comm: BLEManager())
+        case .wifi:
+            self.elm327 = ELM327(comm: WifiManager())
+        }
+    }
+    // MARK: - Connection Handling
 
      public func startConnection(_ preferedProtocol: PROTOCOL?) async throws -> (OBDProtocol: PROTOCOL, VIN: String?) {
-        try await initAdapter()
-        return try await initVehicle(preferedProtocol)
+        try await initializeAdapter()
+        return try await initializeVehicle(preferedProtocol)
     }
 
-    func stopConnection() {
-        self.connectionState = .disconnected
+    public func initializeAdapter(timeout: TimeInterval = 7) async throws {
+        try await elm327.connectToAdapter()
+        try await elm327.adapterInitialization()
+    }
+
+    public func initializeVehicle(_ preferedProtocol: PROTOCOL?) async throws -> (OBDProtocol: PROTOCOL, VIN: String?) {
+        let obd2info = try await elm327.setupVehicle(preferedProtocol: preferedProtocol)
+        return obd2info
+    }
+
+    public func stopConnection() {
         self.elm327.stopConnection()
     }
 
-    public func initAdapter(timeout: TimeInterval = 7) async throws {
-        if connectionState != .connectedToAdapter {
-            let foundPeripheral = try await scanForPeripheral(timeout: timeout)
-            _ = try await connect(to: foundPeripheral)
+    public func switchConnectionType(_ connectionType: connectionType) {
+        switch connectionType {
+        case .bluetooth:
+            self.elm327 = ELM327(comm: BLEManager())
+        case .wifi:
+            self.elm327 = ELM327(comm: WifiManager())
         }
-        if bleManager.ecuWriteCharacteristic == nil || bleManager.ecuReadCharacteristic == nil {
-            await bleManager.processCharacteristics()
-        }
-        try await elm327.adapterInitialization(setupOrder: setupOrder)
     }
 
-    func scanForPeripheral(timeout: TimeInterval) async throws -> CBPeripheralProtocol {
-        guard let peripheral = try await self.bleManager.scanForPeripheralAsync(timeout: timeout) else { throw OBDServiceError.noAdapterFound }
-        return peripheral
-    }
+    // MARK: - Request Handling
 
-    func connect(to peripheral: CBPeripheralProtocol) async throws  -> CBPeripheralProtocol {
-        let connectedPeripheral = try await self.bleManager.connectAsync(peripheral: peripheral)
-        return connectedPeripheral
-    }
-
-    public func initVehicle(_ preferedProtocol: PROTOCOL?) async throws -> (OBDProtocol: PROTOCOL, VIN: String?) {
-        let obd2info = try await elm327.setupVehicle(preferedProtocol: preferedProtocol)
-        DispatchQueue.main.async {
-            self.connectionState = .connectedToVehicle
-        }
-        return obd2info
+    public func requestPIDs(_ commands: [OBDCommand]) async throws -> [Message] {
+        return try await elm327.requestPIDs(commands)
     }
 
     public func getSupportedPIDs() async -> [OBDCommand] {
         return await elm327.getSupportedPIDs()
     }
 
-    func scanForTroubleCodes() async throws -> [String: String]? {
+    public func scanForTroubleCodes() async throws -> [String: String]? {
         guard self.connectionState == .connectedToVehicle else {
             throw OBDServiceError.notConnectedToVehicle
         }
         return try await elm327.scanForTroubleCodes()
-    }
-
-    public func requestPIDs(_ commands: [OBDCommand]) async throws -> [Message] {
-        return try await elm327.requestPIDs(commands)
     }
 
     public func clearTroubleCodes() async throws {
@@ -113,17 +89,12 @@ public class OBDService: ObservableObject {
         return try await elm327.getStatus()
     }
 
-//    func scanForPeripherals() {
-//        bleManager.scanForPeripherals()
-//    }
-
-    func disconnectPeripheral(peripheral: Peripheral) {
-        bleManager.disconnectPeripheral()
+    public func switchToDemoMode(_ isDemoMode: Bool) {
+        elm327.switchToDemoMode(isDemoMode)
     }
 
-    func switchToDemoMode(_ isDemoMode: Bool) {
-        stopConnection()
-        bleManager.demoModeSwitch(isDemoMode)
+    public func sendCommand(_ message: String, withTimeoutSecs: TimeInterval = 5) async throws -> [String] {
+        return try await elm327.sendCommand(message)
     }
 }
 
@@ -137,23 +108,3 @@ enum OBDServiceError: Error, CustomStringConvertible {
         }
     }
 }
-
-
-//enum OBDDevices: CaseIterable {
-//    case carlyOBD
-//    case mockOBD
-//    case blueDriver
-//
-//    var properties: DeviceInfo {
-//        switch self {
-//        case .carlyOBD:
-//            return DeviceInfo(id: UUID(uuidString: "5B6EE3F4-2FCA-CE45-6AE7-8D7390E64D6D") ?? UUID(), deviceName: "Carly", serviceUUID: "FFE0")
-//
-//        case .blueDriver:
-//            return DeviceInfo(id: UUID(uuidString: "5B6EE3F4-2FCA-CE45-6AE7-8D7390E64D61") ?? UUID(), deviceName: "BlueDriver")
-//        case .mockOBD:
-//            return DeviceInfo(id: UUID(uuidString: "5B6EE3F4-2FCA-CE45-6AE7-8D7390E64A34") ?? UUID(), deviceName: "MockOBD")
-//        }
-//    }
-//}
-

@@ -33,12 +33,12 @@ extension String {
     }
 }
 
-struct OBDParcer {
+public struct OBDParcer {
     let idBits: Int
-    let messages: [Message]
+    public let messages: [Message]
     let frames: [Frame]
 
-    init(_ lines: [String], idBits: Int) throws {
+    public init(_ lines: [String], idBits: Int) throws {
         self.idBits = idBits
         let obdLines = lines
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
@@ -156,11 +156,14 @@ struct Frame {
 
         self.data = Data(dataBytes.dropFirst(4))
 
-        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
-                    print("invalid frame size")
-                    print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
-                    return nil
-        }
+
+//
+//        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
+//                print(dataBytes.count)
+//                    print("invalid frame size")
+//                    print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
+//                    return nil
+//        }
 
         guard let txID = ECUID(rawValue: dataBytes[3] & 0x07),
               let type = FrameType(rawValue: data[0] & 0xF0) else {

@@ -38,7 +38,7 @@ extension CBPeripheral : CBPeripheralProtocol {}
 public protocol CBCentralManagerProtocolDelegate {
     func didUpdateState(_ central: CBCentralManagerProtocol)
     
-//    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String : Any])
+    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String : Any])
     
     func didDiscover(_ central: CBCentralManagerProtocol,
                      peripheral: CBPeripheralProtocol,
@@ -71,8 +71,6 @@ public protocol CBCentralManagerProtocol {
     func cancelPeripheralConnection(_ peripheral: CBPeripheralProtocol)
     func retrievePeripherals(_ identifiers: [UUID]) -> [CBPeripheralProtocol]
 }
-
-//func connectAsync(peripheral: CBPeripheralProtocol) async throws -> CBPeripheralProtocol
 
 extension CBCentralManager : CBCentralManagerProtocol {
     public func connect(_ peripheral: CBPeripheralProtocol, options: [String: Any]?) {

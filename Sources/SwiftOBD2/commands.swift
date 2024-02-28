@@ -26,10 +26,10 @@ struct OBDCommandConfiguration {
 }
 
 public struct CommandProperties {
-    let command: String
+    public let command: String
     public let description: String
     let bytes: Int
-    let decoder: Decoders
+    public let decoder: Decoders
     public let live: Bool
     public let maxValue: Double
     public let minValue: Double
@@ -564,9 +564,6 @@ public enum OBDCommand: Codable, Hashable, Comparable {
         for command in OBDCommand.Mode3.allCases {
             commands.append(.mode3(command))
         }
-//        for command in OBDCommand.Mode4.allCases {
-//            commands.append(.mode4(command))
-//        }
 
         for command in OBDCommand.Mode6.allCases {
             commands.append(.mode6(command))

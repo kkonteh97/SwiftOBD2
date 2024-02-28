@@ -25,12 +25,19 @@ public enum OBDDecodeResult {
     case measurementMonitor(Monitor)
     case troubleCode([String: String])
     case noResult
+
+    func getString() -> String? {
+        if case let .stringResult(str) = self { return str }
+        return nil
+    }
+
+    func getStatus() -> Status? {
+        if case let .statusResult(status) = self { return status }
+        return nil
+    }
 }
 
-struct FuelStatus {
-}
-
-enum MeasurementUnits: String, Codable {
+public enum MeasurementUnits: String, Codable {
     case metric = "Metric"
     case imperial = "Imperial"
 
@@ -270,7 +277,7 @@ public enum Decoders: Codable {
         return kph * 0.621371
     }
 
-    func decode(data: Data, isMetric: MeasurementUnits = .metric) -> OBDDecodeResult? {
+    public func decode(data: Data, isMetric: MeasurementUnits = .metric) -> OBDDecodeResult? {
         switch self {
         case .pid:
             return nil
@@ -719,41 +726,6 @@ public enum Decoders: Codable {
         }
         return output
     }
-
-    //    func fuelStatus(_ messages: [Message]) -> (String?, String?) {
-    //        guard let data = messages.first?.data.dropFirst(2) else {
-    //            return (nil, nil)
-    //        }
-    //
-    //        let FUEL_STATUS = ["Status1", "Status2", "Status3"]
-    //
-    //        let bits = BitArray(data: data).binaryArray
-    //
-    //        var status1: String? = nil
-    //        var status2: String? = nil
-    //
-    //        if bits[0..<8].count(1) == 1 {
-    //                if let index = bits[0..<8].firstIndex(of: true), 7 - index < FUEL_STATUS.count {
-    //                    status1 = FUEL_STATUS[7 - index]
-    //                } else {
-    //                    NSLog("Invalid response for fuel status (high bits set)")
-    //                }
-    //            } else {
-    //                NSLog("Invalid response for fuel status (multiple/no bits set)")
-    //            }
-    //
-    //            if bits[8..<16].count(true) == 1 {
-    //                if let index = bits[8..<16].firstIndex(of: true), 7 - index < FUEL_STATUS.count {
-    //                    status2 = FUEL_STATUS[7 - index]
-    //                } else {
-    //                    NSLog("Invalid response for fuel status (high bits set)")
-    //                }
-    //            } else {
-    //                NSLog("Invalid response for fuel status (multiple/no bits set)")
-    //            }
-    //
-    //            return (status1, status2)
-    //    }
 }
 
 func parse_monitor_test(_ data: Data) -> MonitorTest? {
@@ -827,7 +799,7 @@ func processBaseTest(_ testName: String, _ index: Int, _ bits: BitArray, _ outpu
 }
 
 public class Monitor {
-    var tests: [UInt8: MonitorTest] = [:]
+    public var tests: [UInt8: MonitorTest] = [:]
 
 //    init() {
 //        for value in TestIds.allCases {

@@ -1,8 +1,8 @@
-###SwiftOBD2
+# SwiftOBD2
 
 A Swift package for interfacing with vehicles using the ELM327 OBD2 adapter on macOS, iPadOS, and iOS.
 
-##Key Features
+## Key Features
 
 Connection Management: Establish reliable connections with your ELM327 adapter over Bluetooth or Wi-Fi.
 Command Interface: Send and receive OBD2 commands for powerful interaction with your vehicle.
@@ -44,11 +44,11 @@ Task {
     }
 }
 ```
-##Supported OBD2 Commands
+## Supported OBD2 Commands
 
 A comprehensive list of supported OBD2 commands will be available in the full documentation (coming soon).
 
-##Contributing
+## Contributing
 
 This project welcomes your contributions! Feel free to open issues for bug reports or feature requests. To contribute code:
 

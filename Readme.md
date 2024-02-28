@@ -1,4 +1,4 @@
-##SwiftOBD2
+###SwiftOBD2
 
 A Swift package for interfacing with vehicles using the ELM327 OBD2 adapter on macOS, iPadOS, and iOS.
 
@@ -14,7 +14,7 @@ Installation
 The Swift OBD package can be easily integrated into your project using the Swift Package Manager:
 
 In Xcode, navigate to File > Add Packages...
-Enter this repository's URL: https://github.com/[your-username]/swift-obd
+Enter this repository's URL: https://github.com/kkonteh97/SwiftOBD2/
 Select the desired dependency rule (version, branch, or commit).
 Usage Example
 

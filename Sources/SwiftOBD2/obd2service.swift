@@ -15,8 +15,17 @@ public enum connectionType {
     case wifi
 }
 
-public class OBDService: ObservableObject {
-    @Published var connectedPeripheral: CBPeripheralProtocol? = nil
+public protocol OBDServiceDelegate: AnyObject {
+    func connectionStateChanged(state: ConnectionState)
+}
+
+public class OBDService {
+    public weak var delegate: OBDServiceDelegate? {
+        didSet {
+            elm327.obdDelegate = delegate
+        }
+    }
+
     var elm327: ELM327
 
     public var connectionState: ConnectionState {
@@ -33,18 +42,20 @@ public class OBDService: ObservableObject {
     }
     // MARK: - Connection Handling
 
-     public func startConnection(_ preferedProtocol: PROTOCOL?) async throws -> (OBDProtocol: PROTOCOL, VIN: String?) {
-        try await initializeAdapter()
-        return try await initializeVehicle(preferedProtocol)
+    public func startConnection(preferedProtocol: PROTOCOL?) async throws -> OBDInfo {
+         try await self.initializeAdapter()
+         return try await self.initializeVehicle(preferedProtocol)
     }
 
     public func initializeAdapter(timeout: TimeInterval = 7) async throws {
         try await elm327.connectToAdapter()
+        delegate?.connectionStateChanged(state: .connectedToAdapter)
         try await elm327.adapterInitialization()
     }
 
-    public func initializeVehicle(_ preferedProtocol: PROTOCOL?) async throws -> (OBDProtocol: PROTOCOL, VIN: String?) {
+    public func initializeVehicle(_ preferedProtocol: PROTOCOL?) async throws -> OBDInfo {
         let obd2info = try await elm327.setupVehicle(preferedProtocol: preferedProtocol)
+        delegate?.connectionStateChanged(state: .connectedToVehicle)
         return obd2info
     }
 
@@ -62,16 +73,66 @@ public class OBDService: ObservableObject {
     }
 
     // MARK: - Request Handling
+    var pidList: [OBDCommand] = []
 
-    public func requestPIDs(_ commands: [OBDCommand]) async throws -> [Message] {
-        return try await elm327.requestPIDs(commands)
+    public func startContinuousUpdates(_ pids: [OBDCommand], interval: TimeInterval = 0.3) -> AnyPublisher<[OBDCommand: MeasurementResult], Error> {
+        self.pidList = pids
+        return Timer.publish(every: interval, on: .main, in: .common)
+            .autoconnect()
+            .flatMap { [weak self] _ in
+                return Future<[OBDCommand: MeasurementResult], Error> { promise in
+                    guard let self = self else {
+                        promise(.failure(OBDServiceError.notConnectedToVehicle))
+                        return
+                    }
+
+                    Task.init(priority: .userInitiated) {
+                        do {
+                            let results = try await self.requestPIDs(self.pidList)
+                            DispatchQueue.main.async {
+                                promise(.success(results))
+                            }
+                        } catch {
+                            promise(.failure(error))
+                        }
+                    }
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+
+    public func addPID(_ pid: OBDCommand) {
+        self.pidList.append(pid)
+    }
+
+    public func requestPIDs(_ commands: [OBDCommand]) async throws -> [OBDCommand: MeasurementResult] {
+        print("Requesting PIDs: \(commands.map { $0.properties.description })")
+        let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
+        let messages  = try OBDParcer(response, idBits: elm327.obdProtocol.idBits).messages
+        guard let responseData = messages.first?.data else { return [:] }
+        var batchedResponse = BatchedResponse(response: responseData)
+
+        var results: [OBDCommand: MeasurementResult] = [:]
+        for command in commands {
+            let result = try batchedResponse.extractValue(command)
+            results[command] = result
+        }
+        return results
+    }
+
+    public func requestPID(_ command: OBDCommand) async throws -> DecodeResult? {
+        print("Requesting PID: \(command)")
+        let response = try await sendCommand(command.properties.command)
+        let messages  = try OBDParcer(response, idBits: elm327.obdProtocol.idBits).messages
+        guard let responseData = messages.first?.data else { return nil }
+        return command.properties.decode(data: responseData.dropFirst())
     }
 
     public func getSupportedPIDs() async -> [OBDCommand] {
         return await elm327.getSupportedPIDs()
     }
 
-    public func scanForTroubleCodes() async throws -> [String: String]? {
+    public func scanForTroubleCodes() async throws -> [TroubleCode] {
         guard self.connectionState == .connectedToVehicle else {
             throw OBDServiceError.notConnectedToVehicle
         }
@@ -96,6 +157,11 @@ public class OBDService: ObservableObject {
     public func sendCommand(_ message: String, withTimeoutSecs: TimeInterval = 5) async throws -> [String] {
         return try await elm327.sendCommand(message)
     }
+}
+
+public struct MeasurementResult {
+    public let value: Double
+    public let unit: Unit
 }
 
 enum OBDServiceError: Error, CustomStringConvertible {

@@ -14,6 +14,7 @@ protocol CommProtocol {
     func disconnectPeripheral()
     func connectAsync() async throws
     var connectionStatePublisher: Published<ConnectionState>.Publisher { get }
+    var obdDelegate: OBDServiceDelegate? { get set}
 }
 
 enum CommunicationError : Error {
@@ -22,6 +23,8 @@ enum CommunicationError : Error {
 }
 
 class WifiManager: CommProtocol {
+    var obdDelegate: OBDServiceDelegate?
+
     @Published var connectionState: ConnectionState = .disconnected
     var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
 

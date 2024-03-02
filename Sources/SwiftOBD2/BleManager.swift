@@ -25,7 +25,7 @@ public enum ConnectionState {
     case connectedToVehicle
 }
 
-var debug = true
+var debug = false
 
 class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtocolDelegate, CommProtocol {
 
@@ -48,6 +48,8 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     private var foundPeripheralCompletion: ((CBPeripheralProtocol?, Error?) -> Void)?
     private var connectionCompletion: ((CBPeripheralProtocol?, Error?) -> Void)?
 
+    public weak var obdDelegate: OBDServiceDelegate?
+
     // MARK: - Initialization
     override init() {
         super.init()
@@ -62,7 +64,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     // MARK: - Central Manager Control Methods
 
     func startScanning(_ serviceUUIDs: [CBUUID]?) {
-        let scanOption = [CBCentralManagerScanOptionAllowDuplicatesKey: false]
+        let scanOption = [CBCentralManagerScanOptionAllowDuplicatesKey: true]
         centralManager?.scanForPeripherals(withServices: serviceUUIDs, options: scanOption)
     }
 
@@ -79,6 +81,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     func didUpdateState(_ central: CBCentralManagerProtocol) {
         switch central.state {
         case .poweredOn:
+            obdDelegate?.connectionStateChanged(state: .disconnected)
             guard let device = connectedPeripheral else {
                 startScanning([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
                 return
@@ -104,7 +107,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     }
 
     func didDiscover(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, advertisementData: [String : Any], rssi: NSNumber) {
-        connect(to: peripheral)
+//        connect(to: peripheral)
 //        appendFoundPeripheral(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
         if foundPeripheralCompletion != nil {
             foundPeripheralCompletion?(peripheral, nil)
@@ -129,6 +132,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
         connectedPeripheral?.delegate = self
         connectedPeripheral?.discoverServices([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
         connectionState = .connectedToAdapter
+        obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
     }
 
     func scanForPeripheralAsync(timeout: TimeInterval) async throws -> CBPeripheralProtocol? {
@@ -143,7 +147,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
                     }
                     self.foundPeripheralCompletion = nil
                 }
-                self.startScanning([CBUUID(string: "FFF0"), CBUUID(string: "FFE0")])
+//                self.startScanning([CBUUID(string: "FFF0"), CBUUID(string: "FFE0")])
             }
         }
     }
@@ -238,7 +242,10 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     // MARK: - Async Methods
 
     func connectAsync() async throws {
-        guard let peripheral = try await scanForPeripheralAsync(timeout: 5) else {
+        if connectionState != .disconnected {
+           return
+        }
+        guard let peripheral = try await scanForPeripheralAsync(timeout: 10) else {
             throw BLEManagerError.peripheralNotFound
         }
 

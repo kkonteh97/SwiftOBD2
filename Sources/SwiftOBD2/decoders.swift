@@ -143,7 +143,7 @@ let uasIDS: [UInt8: UAS] = [
     0x1B: UAS(signed: false, scale: 10, unit: UnitPressure.kilopascals),
     0x1C: UAS(signed: false, scale: 0.01, unit: UnitAngle.degrees),
     0x1D: UAS(signed: false, scale: 0.5, unit: UnitAngle.degrees),
-    //unit ratio
+    // unit ratio
     0x1E: UAS(signed: false, scale: 0.0000305, unit: Unit.ratio),
     0x1F: UAS(signed: false, scale: 0.05, unit: Unit.ratio),
     0x20: UAS(signed: false, scale: 0.00390625, unit: Unit.ratio),
@@ -153,7 +153,7 @@ let uasIDS: [UInt8: UAS] = [
     0x24: UAS(signed: false, scale: 1, unit: Unit.count),
     0x25: UAS(signed: false, scale: 1, unit: UnitLength.kilometers),
 
-    0x27: UAS(signed: false, scale:  0.01, unit: Unit.gramsPerSecond),
+    0x27: UAS(signed: false, scale: 0.01, unit: Unit.gramsPerSecond),
 
     // Signed
     0x81: UAS(signed: true, scale: 1.0, unit: Unit.count),
@@ -179,7 +179,7 @@ let uasIDS: [UInt8: UAS] = [
 
     0xFC: UAS(signed: true, scale: 0.01, unit: UnitPressure.kilopascals),
     0xFD: UAS(signed: true, scale: 0.001, unit: UnitPressure.kilopascals),
-    0xFE: UAS(signed: true, scale: 0.25, unit: Unit.Pascal),
+    0xFE: UAS(signed: true, scale: 0.25, unit: Unit.Pascal)
 ]
 
 public enum Decoders: Codable {
@@ -252,7 +252,7 @@ func encoded_string(_ data: Data) -> String? {
     return string
 }
 
-func monitor(_ data: Data) -> Monitor? {
+func decodeMonitor(_ data: Data) -> Monitor? {
     var databytes = Data(data)
 
     let mon = Monitor()
@@ -268,15 +268,15 @@ func monitor(_ data: Data) -> Monitor? {
     // look at data in blocks of 9 bytes (one test result)
     for i in stride(from: 0, to: databytes.count, by: 9) {
         let subdata = databytes.subdata(in: i..<i+9)
-        print("\nSubdata: ", subdata.compactMap {String(format: "%02x", $0)})
+//        print("\nSubdata: ", subdata.compactMap {String(format: "%02x", $0)})
         let test = parse_monitor_test(subdata)
         if let test = test, let tid = test.tid {
-            print(test.name ?? "")
-            print(test.desc ?? "")
-            print("Value: ", test.value ?? "No value")
-            print("Min: ", test.min ?? "No value")
-            print("Max: ", test.max ?? "No value")
-            print(test.description)
+//            print(test.name ?? "")
+//            print(test.desc ?? "")
+//            print("Value: ", test.value ?? "No value")
+//            print("Min: ", test.min ?? "No value")
+//            print("Max: ", test.max ?? "No value")
+//            print(test.description)
             mon.tests[tid] = test
         }
     }
@@ -294,6 +294,7 @@ func fuelRate(_ data: Data) -> MeasurementResult? {
     let value = Double(bytesToInt(data)) * 0.05
     return MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers)
 }
+
 
 func injectTiming(_ data: Data) -> MeasurementResult? {
     let value = (Double(bytesToInt(data)) - 26880) / 128
@@ -394,7 +395,6 @@ func fuelStatus(_ data: Data) -> String? {
 
     let highBits = Array(bits.binaryArray[0..<8])
     let lowBits = Array(bits.binaryArray[8..<16])
-    print(highBits)
 
     if highBits.filter({ $0 == 1 }).count == 1, let index = highBits.firstIndex(of: 1) {
         if 7 - index < FUEL_STATUS.count {
@@ -507,9 +507,9 @@ func airStatus(_ data: Data) -> MeasurementResult? {
     return nil
 }
 
-func decodeTemp(_ data: Data, isMetric: MeasurementUnits = .metric) -> DecodeResult {
+func decodeTemp(_ data: Data, isMetric: MeasurementUnits = .metric) -> MeasurementResult? {
     let value = Double(bytesToInt(data)) - 40.0
-    return .measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius))
+    return MeasurementResult(value: value, unit: UnitTemperature.celsius)
 }
 
 func timingAdvance(_ data: Data) -> MeasurementResult? {
@@ -517,7 +517,7 @@ func timingAdvance(_ data: Data) -> MeasurementResult? {
     return  MeasurementResult(value: value, unit: UnitAngle.degrees)
 }
 
- func decodeStatus(_ data: Data, isMetric: MeasurementUnits = .metric) -> DecodeResult {
+ func decodeStatus(_ data: Data, isMetric: MeasurementUnits = .metric) -> Status {
     let IGNITIONTYPE = ["Spark", "Compression"]
     //            ┌Components not ready
     //            |┌Fuel not ready
@@ -545,12 +545,11 @@ func timingAdvance(_ data: Data) -> MeasurementResult? {
     for (index, name) in baseTests.reversed().enumerated() {
         processBaseTest(name, index, bits, &output)
     }
-    return  .statusResult(output)
+    return output
 }
 
 func parse_monitor_test(_ data: Data) -> MonitorTest? {
     var test = MonitorTest()
-    //        let string = data.compactMap { String(format: "%02x", $0) }
 
     let tid = data[1]
     let cid = data[2]
@@ -570,11 +569,8 @@ func parse_monitor_test(_ data: Data) -> MonitorTest? {
     }
 
     let valueRange = data[3...4]
-    print("Value Range: ", valueRange.compactMap { String(format: "%02x", $0) })
     let minRange = data[5...6]
-    print("Min Range: ", minRange.compactMap { String(format: "%02x", $0) })
     let maxRange =   data[7...]
-    print("Max Range: ", maxRange.compactMap { String(format: "%02x", $0) })
 
     test.tid = tid
     test.value = uas.decode(bytes: valueRange)
@@ -684,7 +680,7 @@ let FUEL_STATUS = [
     "Closed loop, using oxygen sensor feedback to determine fuel mix",
     "Open loop due to engine load OR fuel cut due to deceleration",
     "Open loop due to system failure",
-    "Closed loop, using at least one oxygen sensor but there is a fault in the feedback system",
+    "Closed loop, using at least one oxygen sensor but there is a fault in the feedback system"
 ]
 
 let FuelTypes = [
@@ -711,7 +707,7 @@ let FuelTypes = [
     "Hybrid Electric",
     "Hybrid running electric and combustion engine",
     "Hybrid Regenerative",
-    "Bifuel running diesel",
+    "Bifuel running diesel"
 ]
 
 let OBD_COMPLIANCE = [
@@ -748,7 +744,7 @@ let OBD_COMPLIANCE = [
     "Korean OBD (KOBD)",
     "India OBD I (IOBD I)",
     "India OBD II (IOBD II)",
-    "Heavy Duty Euro OBD Stage VI (HD EOBD-IV)",
+    "Heavy Duty Euro OBD Stage VI (HD EOBD-IV)"
 ]
 
 let TestIds: [UInt8: (String, String)] = [
@@ -763,5 +759,5 @@ let TestIds: [UInt8: (String, String)] = [
     0x09: ("TransitionTime", "The time it takes for the sensor to transition from one voltage to another"),
     0x0A: ("SensorPeriod", "The time between sensor readings"),
     0x0B: ("MisFireAverage", "The average number of misfires per 1000 revolutions"),
-    0x0C: ("MisFireCount", "The number of misfires since the last reset"),
+    0x0C: ("MisFireCount", "The number of misfires since the last reset")
 ]

@@ -14,7 +14,7 @@ class Service: Identifiable {
 
     init(_uuid: CBUUID,
          _service: CBService) {
-        
+
         id = UUID()
         uuid = _uuid
         service = _service

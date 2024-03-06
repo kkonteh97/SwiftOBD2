@@ -17,9 +17,40 @@ protocol CommProtocol {
     var obdDelegate: OBDServiceDelegate? { get set}
 }
 
-enum CommunicationError : Error {
+enum CommunicationError: Error {
     case invalidData
     case errorOccurred(Error)
+}
+
+class MOCKComm: CommProtocol {
+    var ecuSettings: MockECUSettings = MockECUSettings()
+
+    func sendCommand(_ command: String) async throws -> [String] {
+        if let command = MockResponse(rawValue: command) {
+            let response = command.response(ecuSettings: &ecuSettings)
+            return [response]
+        } else {
+            return ["NO DATA"]
+        }
+    }
+    
+    func demoModeSwitch(_ isDemoMode: Bool) {
+    }
+    
+    func disconnectPeripheral() {
+        connectionState = .disconnected
+        obdDelegate?.connectionStateChanged(state: .disconnected)
+    }
+    
+    func connectAsync() async throws {
+        connectionState = .connectedToAdapter
+        obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
+    }
+    
+    @Published var connectionState: ConnectionState = .disconnected
+    var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
+    var obdDelegate: OBDServiceDelegate?
+    
 }
 
 class WifiManager: CommProtocol {
@@ -56,7 +87,7 @@ class WifiManager: CommProtocol {
         }
     }
 
-    func sendCommand(_ command: String) async throws -> [String]  {
+    func sendCommand(_ command: String) async throws -> [String] {
         guard let data = "\(command)\r".data(using: .ascii) else {
             throw CommunicationError.invalidData
         }
@@ -69,8 +100,7 @@ class WifiManager: CommProtocol {
                     continuation.resume(throwing: error)
                 }
 
-
-                self.tcp?.receive(minimumIncompleteLength: 1, maximumLength: 500, completion: { data, _, isComplete, error in
+                self.tcp?.receive(minimumIncompleteLength: 1, maximumLength: 500, completion: { data, _, _, _ in
                     guard let response = data, let string = String(data: response, encoding: .utf8) else {
                         return
                     }
@@ -97,4 +127,3 @@ class WifiManager: CommProtocol {
 
     }
 }
-

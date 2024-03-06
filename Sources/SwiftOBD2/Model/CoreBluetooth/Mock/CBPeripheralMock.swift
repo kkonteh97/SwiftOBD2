@@ -15,7 +15,7 @@ class CBPeripheralMock: Mock, CBPeripheralProtocol {
     var name: String?
     var services: [CBService]?
     var manager: CBCentralManagerMock
-    
+
     private var serviceCharacteristic = ServiceCharacteristicsMock()
 
     var ecuSetting: MockECUSettings = MockECUSettings()
@@ -23,20 +23,20 @@ class CBPeripheralMock: Mock, CBPeripheralProtocol {
     var debugDescription: String {
         return "\(identifier) \(name ?? "")"
     }
-    
+
     init(identifier: UUID, name: String?, manager: CBCentralManagerMock) {
         self.identifier = identifier
         self.name = name
         self.manager = manager
         log(#function)
     }
-    
-    func didConnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol){
+
+    func didConnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol) {
         log(#function)
         state = .connected
         delegate = peripheral.delegate
     }
-    
+
     func didDisconnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, error: Error?) {
         state = .disconnected
     }
@@ -53,37 +53,37 @@ class CBPeripheralMock: Mock, CBPeripheralProtocol {
         guard let mutableService = service as? CBMutableService,
             let delegate = delegate as? CBPeripheralProtocolDelegate
             else { return }
-        
+
         mutableService.characteristics = serviceCharacteristic.characteristics(service.uuid)
-        
+
         delegate.didDiscoverCharacteristics(self, service: mutableService, error: nil)
     }
 
     func readValue(for characteristic: CBCharacteristic) {
         log(#function)
-        
+
         guard let mutableCharacteristic = characteristic as? CBMutableCharacteristic,
             let delegate = delegate as? CBPeripheralProtocolDelegate
             else { return }
-        
+
         mutableCharacteristic.value = serviceCharacteristic.value(uuid: mutableCharacteristic.uuid)
-        
+
         if let _ = mutableCharacteristic.value {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 delegate.didUpdateValue(self,
                                         characteristic: characteristic,
                                         error: nil)
             }
         }
     }
-    
+
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) {
         log(#function)
-        
+
         guard let mutableCharacteristic = characteristic as? CBMutableCharacteristic,
             let delegate = delegate as? CBPeripheralProtocolDelegate
             else { return }
-        
+
         serviceCharacteristic.writeValue(uuid: mutableCharacteristic.uuid, writeValue: data, delegate: delegate, ecuSettings: &ecuSetting)
         let value = serviceCharacteristic.value(uuid: mutableCharacteristic.uuid)
 
@@ -99,21 +99,21 @@ class CBPeripheralMock: Mock, CBPeripheralProtocol {
         }
 
     }
-    
+
     func setNotifyValue(_ enabled: Bool, for characteristic: CBCharacteristic) {
         log(#function)
     }
-    
+
     private func dataNotify(_ delegate: CBPeripheralProtocolDelegate) {
         log(#function)
     }
-    
+
     func discoverDescriptors(for characteristic: CBCharacteristic) {
          log(#function)
     }
 }
 
-//func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) {
+// func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) {
 //    log(#function)
 //
 //    guard let mutableCharacteristic = characteristic as? CBMutableCharacteristic,
@@ -137,4 +137,4 @@ class CBPeripheralMock: Mock, CBPeripheralProtocol {
 //                                    error: nil)
 //        }
 //    }
-//}
+// }

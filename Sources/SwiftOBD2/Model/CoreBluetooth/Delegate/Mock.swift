@@ -13,7 +13,7 @@ extension Mock {
     var className: String {
         return String(describing: type(of: self))
     }
-    
+
     func log(_ message: String? = nil) {
         print("Mocked -", className, message ?? "")
     }

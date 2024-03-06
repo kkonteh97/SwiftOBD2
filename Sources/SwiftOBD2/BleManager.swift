@@ -13,7 +13,6 @@
 /// - Parsing the received messages
 /// - Handling errors
 
-
 import Foundation
 import CoreBluetooth
 import Combine
@@ -25,11 +24,9 @@ public enum ConnectionState {
     case connectedToVehicle
 }
 
-var debug = false
-
 class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtocolDelegate, CommProtocol {
-
     let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "BLEManager")
+
     static let RestoreIdentifierKey: String = "OBD2Adapter"
 
     // MARK: Properties
@@ -57,7 +54,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
         self.centralManager = CBCentralManagerMock(delegate: self, queue: nil, options: nil)
         #else
         self.centralManager = CBCentralManager(delegate: self, queue: .main, options: [CBCentralManagerOptionShowPowerAlertKey: true,
-                                                                                   CBCentralManagerOptionRestoreIdentifierKey : BLEManager.RestoreIdentifierKey])
+                                                                                   CBCentralManagerOptionRestoreIdentifierKey: BLEManager.RestoreIdentifierKey])
         #endif
     }
 
@@ -68,7 +65,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
         centralManager?.scanForPeripherals(withServices: serviceUUIDs, options: scanOption)
     }
 
-    func stopScan(){
+    func stopScan() {
         centralManager?.stopScan()
     }
 
@@ -81,14 +78,14 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     func didUpdateState(_ central: CBCentralManagerProtocol) {
         switch central.state {
         case .poweredOn:
-            obdDelegate?.connectionStateChanged(state: .disconnected)
+            #if DEBUG
+                logger.debug("Bluetooth is On.")
+            #endif
             guard let device = connectedPeripheral else {
                 startScanning([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
                 return
             }
-            if debug {
-                logger.debug("Bluetooth is On.")
-            }
+
             connect(to: device)
         case .poweredOff:
             logger.warning("Bluetooth is currently powered off.")
@@ -106,7 +103,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
         }
     }
 
-    func didDiscover(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, advertisementData: [String : Any], rssi: NSNumber) {
+    func didDiscover(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, advertisementData: [String: Any], rssi: NSNumber) {
 //        connect(to: peripheral)
 //        appendFoundPeripheral(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
         if foundPeripheralCompletion != nil {
@@ -115,9 +112,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     }
 
     func connect(to peripheral: CBPeripheralProtocol) {
-        if debug {
-            logger.info("Connecting to: \(peripheral.name ?? "")")
-        }
+        logger.info("Connecting to: \(peripheral.name ?? "")")
         centralManager.connect(peripheral, options: [CBConnectPeripheralOptionNotifyOnDisconnectionKey: true])
         if centralManager.isScanning {
             centralManager.stopScan()
@@ -125,9 +120,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     }
 
     func didConnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol) {
-        if debug {
-            logger.info("Connected to peripheral: \(peripheral.name ?? "Unnamed")")
-        }
+        logger.info("Connected to peripheral: \(peripheral.name ?? "Unnamed")")
         connectedPeripheral = peripheral
         connectedPeripheral?.delegate = self
         connectedPeripheral?.discoverServices([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
@@ -147,7 +140,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
                     }
                     self.foundPeripheralCompletion = nil
                 }
-//                self.startScanning([CBUUID(string: "FFF0"), CBUUID(string: "FFE0")])
+                self.startScanning([CBUUID(string: "FFF0"), CBUUID(string: "FFE0")])
             }
         }
     }
@@ -162,9 +155,6 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
             } else if service.uuid == CBUUID(string: "FFF0") {
                 peripheral.discoverCharacteristics([CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
             } else {
-                if connectionCompletion != nil {
-                    connectionCompletion?(peripheral, nil)
-                }
                 peripheral.discoverCharacteristics(nil, for: service)
             }
         }
@@ -189,7 +179,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
             }
         }
 
-        if self.connectionCompletion != nil {
+        if self.connectionCompletion != nil && self.ecuWriteCharacteristic != nil && self.ecuReadCharacteristic != nil {
             self.connectionCompletion?(peripheral, nil)
         }
     }
@@ -227,7 +217,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
         resetConfigure()
     }
 
-    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String : Any]) {
+    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String: Any]) {
         if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
             logger.debug("Restoring peripheral: \(peripherals[0].name ?? "Unnamed")")
             peripherals[0].delegate = self
@@ -249,10 +239,10 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
             throw BLEManagerError.peripheralNotFound
         }
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CBPeripheralProtocol, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             self.connectionCompletion = { peripheral, error in
-                if let peripheral = peripheral {
-                    continuation.resume(returning: peripheral)
+                if let _ = peripheral {
+                    continuation.resume()
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 }
@@ -274,10 +264,11 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
     ///     `BLEManagerError.unknownError` if an unknown error occurs.
     func sendCommand(_ command: String) async throws -> [String] {
         // ... (sending message logic)
-        if debug {
+        #if DEBUG
             logger.debug("Sending message: \(command)")
-        }
+        #endif
         guard sendMessageCompletion == nil else {
+            print("Error: Sending messages in progress.", sendMessageCompletion)
             throw BLEManagerError.sendingMessagesInProgress
         }
 
@@ -285,6 +276,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
               let characteristic = self.ecuWriteCharacteristic,
               let data = "\(command)\r".data(using: .ascii) else {
             logger.error("Error: Missing peripheral or ecu characteristic.")
+            print("Error: Missing peripheral or ecu characteristic.", self.ecuWriteCharacteristic)
             throw BLEManagerError.missingPeripheralOrCharacteristic
         }
         return try await Timeout(seconds: 3) {
@@ -293,10 +285,10 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
                 self.sendMessageCompletion = { response, error in
                     if let response = response {
                         continuation.resume(returning: response)
-
                     } else if let error = error {
                         continuation.resume(throwing: error)
                     }
+                    self.sendMessageCompletion = nil
                 }
                 connectedPeripheral.writeValue(data, for: characteristic, type: .withResponse)
             }
@@ -322,9 +314,9 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
 
             // remove the last line
             lines.removeLast()
-            if debug {
-                logger.info("Response: \(lines)")
-            }
+            #if DEBUG
+                logger.debug("Response: \(lines)")
+            #endif
 
             if sendMessageCompletion != nil {
                 if lines[0].uppercased().contains("NO DATA") {
@@ -383,7 +375,7 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
             centralManager = CBCentralManagerMock(delegate: self, queue: nil)
         case false:
             centralManager = CBCentralManager(delegate: self, queue: .main, options: [CBCentralManagerOptionShowPowerAlertKey: true,
-                                                                                  CBCentralManagerOptionRestoreIdentifierKey : BLEManager.RestoreIdentifierKey])
+                                                                                  CBCentralManagerOptionRestoreIdentifierKey: BLEManager.RestoreIdentifierKey])
         }
     }
 }
@@ -424,7 +416,7 @@ extension BLEManager: CBCentralManagerDelegate, CBPeripheralDelegate {
         didDisconnect(central, peripheral: peripheral, error: error)
     }
 
-    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         willRestoreState(central, dict: dict)
     }
 }
@@ -470,7 +462,7 @@ enum BLEManagerError: Error, CustomStringConvertible {
     }
 }
 
-//func appendFoundPeripheral(peripheral: CBPeripheralProtocol, advertisementData: [String : Any], rssi: NSNumber) {
+// func appendFoundPeripheral(peripheral: CBPeripheralProtocol, advertisementData: [String : Any], rssi: NSNumber) {
 //    if rssi.intValue >= 0 { return }
 //    let peripheralName = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? nil
 //    var _name = "NoName"
@@ -498,4 +490,4 @@ enum BLEManagerError: Error, CustomStringConvertible {
 //    } else {
 //        foundPeripherals.append(foundPeripheral)
 //    }
-//}
+// }

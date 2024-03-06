@@ -20,7 +20,7 @@ class Characteristic: Identifiable {
          _uuid: CBUUID,
          _readValue: String,
          _service: CBService) {
-        
+
         id = UUID()
         characteristic = _characteristic
         description = _description == "" ? "NoName" : _description

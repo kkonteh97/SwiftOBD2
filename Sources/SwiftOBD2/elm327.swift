@@ -13,53 +13,28 @@
 /// * Monitors vehicle status and retrieves diagnostic trouble codes (DTCs)
 
 import Foundation
-import CoreBluetooth
 import Combine
 import OSLog
 
-struct ECUHeader {
-    static let ENGINE = "7E0"
-}
-
-// Possible setup errors
-enum SetupError: Error {
-    case noECUCharacteristic
-    case invalidResponse(message: String)
-    case noProtocolFound
-    case adapterInitFailed
-    case timeout
-    case peripheralNotFound
-    case ignitionOff
-    case invalidProtocol
-}
-
-public struct OBDInfo: Codable, Hashable {
-    public var vin: String?
-    public var supportedPIDs: [OBDCommand]?
-    public var obdProtocol: PROTOCOL?
-    public var ecuMap: [UInt8: ECUID]?
-}
-
-public struct TroubleCode: Codable, Hashable {
-    public let code: String
-    public let description: String
-}
-
-// MARK: - ELM327 Class
 class ELM327 {
     // MARK: - Properties
-    let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "ELM327")
-    @Published var connectionState: ConnectionState = .disconnected
+    private let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "ELM327")
+    internal var connectionState: ConnectionState = .disconnected {
+        didSet {
+            obdDelegate?.connectionStateChanged(state: connectionState)
+        }
+    }
 
     private var comm: CommProtocol
-    public weak var obdDelegate: OBDServiceDelegate? {
+
+    internal weak var obdDelegate: OBDServiceDelegate? {
         didSet {
             comm.obdDelegate = obdDelegate
         }
     }
 
-    var obdProtocol: PROTOCOL = .NONE
-    var cancellables = Set<AnyCancellable>()
+    internal var obdProtocol: PROTOCOL = .NONE
+    private var cancellables = Set<AnyCancellable>()
 
     init(comm: CommProtocol) {
         self.comm = comm
@@ -70,11 +45,7 @@ class ELM327 {
             .store(in: &cancellables)
     }
 
-    public func connectToAdapter() async throws {
-        try await self.comm.connectAsync()
-    }
-
-    public func switchToDemoMode(_ isDemoMode: Bool) {
+    internal func switchToDemoMode(_ isDemoMode: Bool) {
         stopConnection()
         comm.demoModeSwitch(isDemoMode)
     }
@@ -93,7 +64,7 @@ class ELM327 {
     ///     - `SetupError.peripheralNotFound` if the peripheral could not be found.
     ///     - `SetupError.ignitionOff` if the vehicle's ignition is not on.
     ///     - `SetupError.invalidProtocol` if the protocol is not recognized.
-    func setupVehicle(preferedProtocol: PROTOCOL?) async throws -> OBDInfo {
+    internal func setupVehicle(preferedProtocol: PROTOCOL?) async throws -> OBDInfo {
         var obdProtocol: PROTOCOL?
 
         if let desiredProtocol = preferedProtocol {
@@ -113,17 +84,22 @@ class ELM327 {
         }
 
         self.obdProtocol = obdProtocol
-        //        if obdInfo.vin == nil {
+
         let vin = await requestVin()
-        //        }
+
         try await setHeader(header: ECUHeader.ENGINE)
-//        let supportedPIDs = await getSupportedPIDs()
+
+        let supportedPIDs = await getSupportedPIDs()
+
+        let messages = try OBDParcer(r100, idBits: obdProtocol.idBits).messages
+
+        let ecuMap = populateECUMap(messages)
+
         self.connectionState = .connectedToVehicle
-        return OBDInfo(vin: vin, supportedPIDs: nil, obdProtocol: obdProtocol, ecuMap: nil)
+        return OBDInfo(vin: vin, supportedPIDs: supportedPIDs, obdProtocol: obdProtocol, ecuMap: ecuMap)
     }
 
-
-    func connectToVehicle(autoProtocol: Bool) async throws -> PROTOCOL? {
+    internal func connectToVehicle(autoProtocol: Bool) async throws -> PROTOCOL? {
         if autoProtocol {
             guard let obdProtocol = try await autoProtocolDetection() else {
                 logger.error("No protocol found")
@@ -150,7 +126,6 @@ class ELM327 {
         _ = try await sendCommand("0100", withTimeoutSecs: 20)
 
         let obdProtocolNumber = try await sendCommand("ATDPN")
-        print(obdProtocolNumber)
         guard let obdProtocol = PROTOCOL(rawValue: String(obdProtocolNumber[0].dropFirst())) else {
             throw SetupError.invalidResponse(message: "Invalid protocol number: \(obdProtocolNumber)")
         }
@@ -184,6 +159,7 @@ class ELM327 {
     }
 
     // MARK: - Protocol Testing
+    private var r100: [String] = []
 
     /// Tests a given protocol by sending a 0100 command and checking for a valid response.
     /// - Parameter obdProtocol: The protocol to test.
@@ -198,6 +174,7 @@ class ELM327 {
         if r100.joined().contains("NO DATA") {
             throw SetupError.ignitionOff
         }
+        self.r100 = r100
 
         guard r100.joined().contains("41 00") else {
             logger.error("Invalid response to 0100")
@@ -205,19 +182,17 @@ class ELM327 {
         }
 
         logger.info("Protocol \(obdProtocol.rawValue) found")
-
-        let response = try await sendCommand("0100", withTimeoutSecs: 10)
-        let messages = try OBDParcer(response, idBits: obdProtocol.idBits).messages
-
-        _ = populateECUMap(messages)
     }
 
     // MARK: - Adapter Initialization
+    internal func connectToAdapter() async throws {
+        try await self.comm.connectAsync()
+    }
 
     /// Initializes the adapter by sending a series of commands.
     /// - Parameter setupOrder: A list of commands to send in order.
     /// - Throws: Various setup-related errors.
-    func adapterInitialization(setupOrder: [OBDCommand.General] = [.ATZ, .ATD, .ATL0, .ATE0, .ATH1, .ATAT1, .ATRV, .ATDPN]) async throws {
+    internal func adapterInitialization(setupOrder: [OBDCommand.General] = [.ATZ, .ATD, .ATL0, .ATE0, .ATH1, .ATAT1, .ATRV, .ATDPN]) async throws {
         for step in setupOrder {
             switch step {
             case .ATD, .ATL0, .ATE0, .ATH1, .ATAT1, .ATSTFF, .ATH0:
@@ -225,10 +200,10 @@ class ELM327 {
             case .ATZ:
                 _ = try await sendCommand(step.properties.command)
             case .ATRV:
-                // get the voltage
+                /// get the voltage
                 _ = try await sendCommand(step.properties.command)
             case .ATDPN:
-                // Describe current protocol number
+                /// Describe current protocol number
                 let protocolNumber = try await sendCommand(step.properties.command)
                 self.obdProtocol = PROTOCOL(rawValue: protocolNumber[0]) ?? .protocol9
             }
@@ -239,14 +214,14 @@ class ELM327 {
         _ = try await okResponse(message: "AT SH " + header)
     }
 
-    func stopConnection() {
+    internal func stopConnection() {
         comm.disconnectPeripheral()
         self.connectionState = .disconnected
     }
 
     // MARK: - Message Sending
 
-    func sendCommand(_ message: String, withTimeoutSecs: TimeInterval = 5) async throws -> [String] {
+    internal func sendCommand(_ message: String, withTimeoutSecs: TimeInterval = 5) async throws -> [String] {
         return try await self.comm.sendCommand(message)
     }
 
@@ -260,7 +235,7 @@ class ELM327 {
         }
     }
 
-    func getStatus() async throws -> Status? {
+    internal func getStatus() async throws -> Status? {
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         let statueMessages = try OBDParcer(statusResponse, idBits: obdProtocol.idBits).messages
@@ -274,7 +249,7 @@ class ELM327 {
         return decodedStatus.statusResult
     }
 
-    func scanForTroubleCodes() async throws -> [TroubleCode] {
+    internal func scanForTroubleCodes() async throws -> [TroubleCode] {
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
@@ -289,11 +264,9 @@ class ELM327 {
         return decodedDtc.troubleCode ?? []
     }
 
-    func clearTroubleCodes() async throws {
+    internal func clearTroubleCodes() async throws {
         let command = OBDCommand.Mode4.CLEAR_DTC
-
-        let response = try await sendCommand(command.properties.command)
-        print("Response: \(response)")
+        _ = try await sendCommand(command.properties.command)
     }
 
     private func requestVin() async -> String? {
@@ -382,7 +355,7 @@ extension ELM327 {
 }
 
 extension ELM327 {
-    func getSupportedPIDs() async -> [OBDCommand] {
+    internal func getSupportedPIDs() async -> [OBDCommand] {
         let pidGetters = OBDCommand.pidGetters
         var supportedPIDs: [OBDCommand] = []
 
@@ -404,7 +377,6 @@ extension ELM327 {
                 supportedPIDs.append(contentsOf: supportedCommands)
             } catch {
                 logger.error("\(error.localizedDescription)")
-                print(error.localizedDescription)
             }
         }
         // filter out pidGetters
@@ -425,7 +397,7 @@ extension ELM327 {
         return extractSupportedPIDs(binaryData)
     }
 
-    func extractSupportedPIDs(_ binaryData: [Int]) -> Set<String> {
+    private func extractSupportedPIDs(_ binaryData: [Int]) -> Set<String> {
         var supportedPIDs: Set<String> = []
 
         for (index, value) in binaryData.enumerated() {
@@ -437,7 +409,7 @@ extension ELM327 {
         return supportedPIDs
     }
 
-    func extractDataLength(_ startIndex: Int, _ response: [String]) throws -> Int? {
+    private func extractDataLength(_ startIndex: Int, _ response: [String]) throws -> Int? {
         guard let lengthHex = UInt8(response[startIndex - 1], radix: 16) else {
             return nil
         }
@@ -463,7 +435,7 @@ extension ELM327 {
         }
     }
 
-    func hexToBinary(_ hexString: String) -> String? {
+    private func hexToBinary(_ hexString: String) -> String? {
         // Create a scanner to parse the hex string
         let scanner = Scanner(string: hexString)
 
@@ -484,14 +456,14 @@ extension ELM327 {
     }
 }
 
-public struct BatchedResponse {
+struct BatchedResponse {
     private var response: Data
 
-    public init(response: Data) {
+    init(response: Data) {
         self.response = response
     }
 
-    public mutating func extractValue(_ cmd: OBDCommand) -> MeasurementResult? {
+    mutating func extractValue(_ cmd: OBDCommand) -> MeasurementResult? {
         let properties = cmd.properties
         let size = properties.bytes
         guard response.count >= size else { return nil }
@@ -533,4 +505,27 @@ extension Data {
     func hexString() -> String {
         return map { String(format: "%02hhx", $0) }.joined(separator: " ")
     }
+}
+
+struct ECUHeader {
+    static let ENGINE = "7E0"
+}
+
+// Possible setup errors
+enum SetupError: Error {
+    case noECUCharacteristic
+    case invalidResponse(message: String)
+    case noProtocolFound
+    case adapterInitFailed
+    case timeout
+    case peripheralNotFound
+    case ignitionOff
+    case invalidProtocol
+}
+
+public struct OBDInfo: Codable, Hashable {
+    public var vin: String?
+    public var supportedPIDs: [OBDCommand]?
+    public var obdProtocol: PROTOCOL?
+    public var ecuMap: [UInt8: ECUID]?
 }

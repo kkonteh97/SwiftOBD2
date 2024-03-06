@@ -16,6 +16,8 @@ public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public var make: String
     public var model: String
     public var year: String
+    public var status: Status?
+    public var troubleCodes: [TroubleCode]?
     public var obdinfo: OBDInfo?
 }
 
@@ -29,7 +31,7 @@ public class Garage: ObservableObject {
         }
     }
 
-    var currentVehicleId: Int {
+    public var currentVehicleId: Int {
         didSet {
             if currentVehicle?.make != "Mock-BMW" && currentVehicle?.make != "Mock-Toyota" {
                 UserDefaults.standard.set(currentVehicleId, forKey: "currentCarId")

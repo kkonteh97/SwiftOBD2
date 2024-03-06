@@ -11,11 +11,10 @@ class ServiceCharacteristicsMock {
     private let ecuServiceUuid: CBUUID = CBUUID(string: "FFE0")
     private let ecuCharacteristicUuid: CBUUID = CBUUID(string: "FFE1")
 
-
     public func service() -> [CBMutableService] {
         return [
             CBMutableService(type: serviceUuid1, primary: true),
-            CBMutableService(type: ecuServiceUuid, primary: true),
+            CBMutableService(type: ecuServiceUuid, primary: true)
         ]
     }
 
@@ -136,7 +135,7 @@ enum MockResponse: String, CaseIterable {
 
         switch self {
         case .ATZ: return "ELM327 v1.5\r\n\r\n>"
-        case .ATD, .ATL0,  .ATAT1, .ATSP0, .ATSP6, .ATSH7E0:  return echo + "OK\r\n>"
+        case .ATD, .ATL0, .ATAT1, .ATSP0, .ATSP6, .ATSH7E0:  return echo + "OK\r\n>"
         case .ATH1:
             ecuSettings.headerOn = true
             return echo + "OK\r\n>"
@@ -190,10 +189,10 @@ extension OBDCommand {
             }
         }
 
-        return nil 
+        return nil
     }
 }
-//switch dataString {
+// switch dataString {
 //    case "ATZ\r":
 //        // Send back ElM327 V1.5 as data
 //        let response = "ELM327 v1.5\r\n>".data(using: .utf8)!
@@ -231,4 +230,4 @@ extension OBDCommand {
 //        value = response
 //    default:
 //        print("default")
-//}
+// }

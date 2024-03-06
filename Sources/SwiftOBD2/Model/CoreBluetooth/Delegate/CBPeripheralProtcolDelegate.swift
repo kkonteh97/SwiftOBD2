@@ -32,21 +32,21 @@ public protocol CBPeripheralProtocol {
     func setNotifyValue(_ enabled: Bool, for characteristic: CBCharacteristic)
 }
 
-extension CBPeripheral : CBPeripheralProtocol {}
+extension CBPeripheral: CBPeripheralProtocol {}
 
 // MARK: - CBCentralManager
 public protocol CBCentralManagerProtocolDelegate {
     func didUpdateState(_ central: CBCentralManagerProtocol)
-    
-    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String : Any])
-    
+
+    func willRestoreState(_ central: CBCentralManagerProtocol, dict: [String: Any])
+
     func didDiscover(_ central: CBCentralManagerProtocol,
                      peripheral: CBPeripheralProtocol,
-                     advertisementData: [String : Any],
+                     advertisementData: [String: Any],
                      rssi: NSNumber)
-    
+
     func didConnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol)
- 
+
     func didFailToConnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, error: Error?)
 
     func didDisconnect(_ central: CBCentralManagerProtocol, peripheral: CBPeripheralProtocol, error: Error?)
@@ -61,18 +61,18 @@ public protocol CBCentralManagerProtocol {
     var delegate: CBCentralManagerDelegate? { get set }
     var state: CBManagerState { get }
     var isScanning: Bool { get }
-    
-    init(delegate: CBCentralManagerDelegate?, queue: DispatchQueue?, options: [String : Any]?)
 
-    func scanForPeripherals(withServices serviceUUIDs: [CBUUID]?, options: [String : Any]?)
+    init(delegate: CBCentralManagerDelegate?, queue: DispatchQueue?, options: [String: Any]?)
+
+    func scanForPeripherals(withServices serviceUUIDs: [CBUUID]?, options: [String: Any]?)
     func stopScan()
 
-    func connect(_ peripheral: CBPeripheralProtocol, options: [String : Any]?)
+    func connect(_ peripheral: CBPeripheralProtocol, options: [String: Any]?)
     func cancelPeripheralConnection(_ peripheral: CBPeripheralProtocol)
     func retrievePeripherals(_ identifiers: [UUID]) -> [CBPeripheralProtocol]
 }
 
-extension CBCentralManager : CBCentralManagerProtocol {
+extension CBCentralManager: CBCentralManagerProtocol {
     public func connect(_ peripheral: CBPeripheralProtocol, options: [String: Any]?) {
         guard let peripheral = peripheral as? CBPeripheral else { return }
         connect(peripheral, options: options)
@@ -82,7 +82,7 @@ extension CBCentralManager : CBCentralManagerProtocol {
         guard let peripheral = peripheral as? CBPeripheral else { return }
         cancelPeripheralConnection(peripheral)
     }
-    
+
     public func retrievePeripherals(_ identifiers: [UUID]) -> [CBPeripheralProtocol] {
         return retrievePeripherals(withIdentifiers: identifiers)
     }

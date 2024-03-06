@@ -156,7 +156,6 @@ struct Frame {
 
         self.data = Data(dataBytes.dropFirst(4))
 
-
 //
 //        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
 //                print(dataBytes.count)

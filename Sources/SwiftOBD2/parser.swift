@@ -13,33 +13,17 @@ enum FrameType: UInt8, Codable {
     case consecutiveFrame = 0x20
 }
 
-enum FrameError: Error {
-    case oddFrame
-    case invalidFrameSize
-    case invalidSingleFrame
-    case noDataInSingleFrame
-    case missingDataLength
-    case invalidDataLength
-    case nonContiguousFrame
-    case missingDataInFrame
-    case missingFirstFrame
-    case missingAssembledData
-    case missingDataLengthInFrame
-}
-
 extension String {
     var isHex: Bool {
         return !isEmpty && allSatisfy { $0.isHexDigit }
     }
 }
 
-public struct OBDParcer {
-    let idBits: Int
+struct OBDParcer {
     public let messages: [Message]
     let frames: [Frame]
 
-    public init(_ lines: [String], idBits: Int) throws {
-        self.idBits = idBits
+    public init?(_ lines: [String], idBits: Int) {
         let obdLines = lines
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
@@ -55,12 +39,8 @@ public struct OBDParcer {
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
 
-        self.messages = try framesByECU.values.compactMap {
-            try Message(frames: $0)
-        }
-
-        guard !messages.isEmpty else {
-            throw OBDParcerError.noMessages
+        self.messages = framesByECU.values.compactMap {
+             Message(frames: $0)
         }
     }
 }
@@ -68,18 +48,12 @@ public struct OBDParcer {
 public struct Message {
     var frames: [Frame]
     public var data: Data? {
-          do {
-              switch frames.count {
-              case 1:
-                  return try parseSingleFrameMessage(frames)
-              case 2...:
-                  return try parseMultiFrameMessage(frames)
-              default:
-                  print(FrameError.invalidFrameSize)
-                  return nil
-              }
-          } catch {
-              print(error)
+          switch frames.count {
+          case 1:
+              return parseSingleFrameMessage(frames)
+          case 2...:
+              return parseMultiFrameMessage(frames)
+          default:
               return nil
           }
       }
@@ -88,43 +62,42 @@ public struct Message {
         return frames.first?.txID
     }
 
-    init(frames: [Frame], data: Data = Data()) throws {
+    init?(frames: [Frame]) {
         guard !frames.isEmpty else {
-            throw FrameError.invalidFrameSize
+            return nil
         }
         self.frames = frames
     }
 
-    private func parseSingleFrameMessage(_ frames: [Frame]) throws -> Data {
-        guard let frame = frames.first, frame.type == .singleFrame, let dataLen = frame.dataLen, dataLen > 0 else {
-            throw FrameError.invalidSingleFrame
+    private func parseSingleFrameMessage(_ frames: [Frame]) -> Data? {
+        guard let frame = frames.first, frame.type == .singleFrame,
+              let dataLen = frame.dataLen, dataLen > 0,
+              frame.data.count >= 2 + Int(dataLen)  else { // Pre-validate the length
+            return nil
         }
-        return Data(frame.data[2..<(1 + Int(dataLen))])
+        return frame.data.subdata(in: 2..<(2 + Int(dataLen))) // Using Substring
     }
 
-    private func parseMultiFrameMessage(_ frames: [Frame]) throws -> Data {
+    private func parseMultiFrameMessage(_ frames: [Frame]) -> Data? {
         guard let firstFrameValid = frames.first(where: { $0.type == .firstFrame }),
-              let assembledData = try? assembleData(firstFrame: firstFrameValid, consecutiveFrames: frames.filter { $0.type == .consecutiveFrame }) else {
-            throw FrameError.missingFirstFrame
+              let assembledData = assembleData(firstFrame: firstFrameValid, consecutiveFrames: frames.filter { $0.type == .consecutiveFrame }) else {
+            return nil
         }
         return assembledData
     }
 
-    private func assembleData(firstFrame: Frame, consecutiveFrames: [Frame]) throws -> Data? {
+    private func assembleData(firstFrame: Frame, consecutiveFrames: [Frame]) -> Data? {
         var assembledFrame: Frame = firstFrame
         // Extract data from consecutive frames, skipping the PCI byte
         for frame in consecutiveFrames {
             assembledFrame.data.append(frame.data[1...])
         }
-        guard let extractedData = try extractDataFromFrame(assembledFrame, startIndex: 3) else {
-            throw FrameError.missingDataInFrame
-        }
-        return extractedData
+        return extractDataFromFrame(assembledFrame, startIndex: 3)
     }
 
-    private func extractDataFromFrame(_ frame: Frame, startIndex: Int) throws -> Data? {
+    private func extractDataFromFrame(_ frame: Frame, startIndex: Int) -> Data? {
         guard let frameDataLen = frame.dataLen else {
-            throw FrameError.missingDataLengthInFrame
+           return nil
         }
         let endIndex = startIndex + Int(frameDataLen) - 1
         guard endIndex <= frame.data.count else {
@@ -152,7 +125,7 @@ struct Frame {
             rawData = "00000" + raw
         }
 
-        let dataBytes = Data(rawData.hexBytes)
+        let dataBytes = rawData.hexBytes
 
         self.data = Data(dataBytes.dropFirst(4))
 
@@ -184,8 +157,4 @@ struct Frame {
                 self.seqIndex = data[0] & 0x0F
         }
     }
-}
-
-enum OBDParcerError: Error {
-    case noMessages
 }

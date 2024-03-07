@@ -210,10 +210,10 @@ class MockBLEManager: NSObject, ObservableObject, CBPeripheralProtocolDelegate, 
         switch central.state {
         case .poweredOn:
             guard let device = connectedPeripheral else {
-                //                centralManager.scanForPeripherals(withServices: [CBUUID(string: "FFE0"), CBUUID(string: "FFF0")], options: nil)
+                centralManager.scanForPeripherals(withServices: [CBUUID(string: "FFE0"), CBUUID(string: "FFF0")], options: nil)
                 return
             }
-            //            connect(to: device)
+            connect(to: device)
         case .poweredOff:
             self.connectedPeripheral = nil
             self.connectionState = .disconnected

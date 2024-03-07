@@ -91,7 +91,9 @@ class ELM327 {
 
         let supportedPIDs = await getSupportedPIDs()
 
-        let messages = try OBDParcer(r100, idBits: obdProtocol.idBits).messages
+        guard let messages = OBDParcer(r100, idBits: obdProtocol.idBits)?.messages else {
+            throw SetupError.invalidResponse(message: "Invalid response to 0100")
+        }
 
         let ecuMap = populateECUMap(messages)
 
@@ -231,16 +233,16 @@ class ELM327 {
             return response
         } else {
             logger.error("Invalid response: \(response)")
-            throw SetupError.invalidResponse(message: response[0])
+            throw SetupError.invalidResponse(message: "message: \(message), \(response[0])")
         }
     }
 
     internal func getStatus() async throws -> Status? {
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
-        let statueMessages = try OBDParcer(statusResponse, idBits: obdProtocol.idBits).messages
+        let statueMessages = OBDParcer(statusResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let statusData = statueMessages[0].data else {
+        guard let statusData = statueMessages?[0].data else {
             return nil
         }
         guard let decodedStatus = statusCommand.properties.decode(data: statusData) else {
@@ -253,9 +255,9 @@ class ELM327 {
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
-        let dtcMessages = try OBDParcer(dtcResponse, idBits: obdProtocol.idBits).messages
+        let dtcMessages = OBDParcer(dtcResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let dtcData = dtcMessages[0].data else {
+        guard let dtcData = dtcMessages?[0].data else {
             return []
         }
         guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
@@ -269,13 +271,13 @@ class ELM327 {
         _ = try await sendCommand(command.properties.command)
     }
 
-    private func requestVin() async -> String? {
+    func requestVin() async -> String? {
         let command = OBDCommand.Mode9.VIN
         guard let vinResponse = try? await sendCommand(command.properties.command) else {
             return nil
         }
-
-        let messages = try? OBDParcer(vinResponse, idBits: obdProtocol.idBits).messages
+        print(vinResponse)
+        let messages = OBDParcer(vinResponse, idBits: obdProtocol.idBits)?.messages
         guard let data = messages?[0].data,
               var vinString = String(bytes: data, encoding: .utf8) else {
             return nil
@@ -387,10 +389,9 @@ extension ELM327 {
     }
 
     private func parseResponse(_ response: [String]) throws -> Set<String> {
-        let messages = try OBDParcer(response, idBits: obdProtocol.idBits).messages
+        let messages = OBDParcer(response, idBits: obdProtocol.idBits)?.messages
 
-        guard !messages.isEmpty,
-              let ecuData = messages[0].data else {
+        guard let ecuData = messages?[0].data else {
             throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
         }
         let binaryData = BitArray(data: ecuData[1...]).binaryArray

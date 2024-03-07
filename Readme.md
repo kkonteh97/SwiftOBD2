@@ -1,6 +1,8 @@
 # SwiftOBD2
 
-A Swift package  is designed to facilitate communication with vehicles using an ELM327 OBD2 adapter. 
+A Swift package  is designed to facilitate communication with vehicles using an ELM327 OBD2 adapter. It provides a simple and powerful interface for interacting with the vehicle's onboard diagnostics system, retrieving real-time data, and performing diagnostics.
+
+Check out the [SwiftOBD2 Demo App](https://github.com/kkonteh97/SwiftOBD2App) for a practical example of how to use this package in an iOS app.
 
 ## MileStones
 
@@ -222,3 +224,5 @@ Submit a pull request for review.
 License
 
 The Swift OBD package is distributed under the MIT license. See the LICENSE file for more information.
+
+If you like this package, don't forget to give it a ⭐️. It helps to maintain the package and keep it up to date.

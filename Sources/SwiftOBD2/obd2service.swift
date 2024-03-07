@@ -1,15 +1,6 @@
 import Foundation
 import Combine
 
-public enum connectionType {
-    case bluetooth
-    case wifi
-}
-
-public protocol OBDServiceDelegate: AnyObject {
-    func connectionStateChanged(state: ConnectionState)
-}
-
 /// A class that provides an interface to the ELM327 OBD2 adapter and the vehicle.
 ///
 /// - Key Responsibilities:
@@ -138,8 +129,8 @@ public class OBDService: ObservableObject {
     /// - Throws: Errors that might occur during the request process.
     private func requestPIDs(_ commands: [OBDCommand]) async throws -> [OBDCommand: MeasurementResult] {
         let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
-        let messages  = try OBDParcer(response, idBits: elm327.obdProtocol.idBits).messages
-        guard let responseData = messages.first?.data else { return [:] }
+        let messages  =  OBDParcer(response, idBits: elm327.obdProtocol.idBits)?.messages
+        guard let responseData = messages?.first?.data else { return [:] }
         var batchedResponse = BatchedResponse(response: responseData)
 
         var results: [OBDCommand: MeasurementResult] = [:]
@@ -153,8 +144,8 @@ public class OBDService: ObservableObject {
     public func sendCommand(_ command: OBDCommand) async throws -> DecodeResult? {
         do {
             let response = try await sendCommand(command.properties.command)
-            let messages  = try OBDParcer(response, idBits: elm327.obdProtocol.idBits).messages
-            guard let responseData = messages.first?.data else { return nil }
+            let messages  =  OBDParcer(response, idBits: elm327.obdProtocol.idBits)?.messages
+            guard let responseData = messages?.first?.data else { return nil }
             return command.properties.decode(data: responseData.dropFirst())
         } catch {
             throw OBDServiceError.commandFailed(command: command.properties.command, error: error)
@@ -198,6 +189,15 @@ public class OBDService: ObservableObject {
 public struct MeasurementResult: Equatable {
     public let value: Double
     public let unit: Unit
+}
+
+public enum connectionType {
+    case bluetooth
+    case wifi
+}
+
+public protocol OBDServiceDelegate: AnyObject {
+    func connectionStateChanged(state: ConnectionState)
 }
 
 enum OBDServiceError: Error {

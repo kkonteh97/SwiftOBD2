@@ -2,6 +2,8 @@
 
 A Swift package  is designed to facilitate communication with vehicles using an ELM327 OBD2 adapter. It provides a simple and powerful interface for interacting with the vehicle's onboard diagnostics system, retrieving real-time data, and performing diagnostics.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) ![Swift](https://img.shields.io/badge/swift-F54A2A?ogo=swift&logoColor=white) ![Swift Package Manager](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen) ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.3%20%7C%205.4%20%7C%205.5%20%7C%205.6-orange) ![Xcode Version](https://img.shields.io/badge/Xcode-12.5%20%7C%2013.0-blue) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
+
 Check out the [SwiftOBD2 Demo App](https://github.com/kkonteh97/SwiftOBD2App) for a practical example of how to use this package in an iOS app.
 
 ## MileStones

@@ -268,7 +268,6 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
             logger.debug("Sending message: \(command)")
         #endif
         guard sendMessageCompletion == nil else {
-            print("Error: Sending messages in progress.", sendMessageCompletion)
             throw BLEManagerError.sendingMessagesInProgress
         }
 
@@ -276,7 +275,6 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
               let characteristic = self.ecuWriteCharacteristic,
               let data = "\(command)\r".data(using: .ascii) else {
             logger.error("Error: Missing peripheral or ecu characteristic.")
-            print("Error: Missing peripheral or ecu characteristic.", self.ecuWriteCharacteristic)
             throw BLEManagerError.missingPeripheralOrCharacteristic
         }
         return try await Timeout(seconds: 3) {
@@ -325,7 +323,6 @@ class BLEManager: NSObject, CBPeripheralProtocolDelegate, CBCentralManagerProtoc
                     sendMessageCompletion?(lines, nil)
                 }
             }
-            sendMessageCompletion = nil
             buffer.removeAll()
         }
     }

@@ -26,26 +26,28 @@ final class ELM327Test: XCTestCase {
         sut = nil
     }
 
-    func testSetupVehicle() async {
+    func testSetupVehicle()  {
         // Given
         guard let sut = sut else {
             XCTFail("Expected sut to be not nil")
             return
         }
 
-        let exp = self.expectation(description: "Expected setupVehicle to return after setting obdProtocol to .protocol6")
-        // When
-        do {
-            let obdInfo = try await sut.setupVehicle(preferedProtocol: nil)
-            XCTAssertEqual(obdInfo.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: obdInfo.obdProtocol))")
-            XCTAssertEqual(sut.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: sut.obdProtocol))")
-            exp.fulfill()
-        } catch {
-            print(error.localizedDescription)
-            exp.fulfill()
+        let exp = expectation(description: "Expected setupVehicle to return after setting obdProtocol to .protocol6")
+        Task {
+            // When
+            do {
+                let obdInfo = try await sut.setupVehicle(preferedProtocol: nil)
+                XCTAssertEqual(obdInfo.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: obdInfo.obdProtocol))")
+                XCTAssertEqual(sut.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: sut.obdProtocol))")
+                exp.fulfill()
+            } catch {
+                print(error.localizedDescription)
+                exp.fulfill()
+            }
         }
 
-        await fulfillment(of: [exp], timeout: 30)
+        wait(for: [exp], timeout: 30)
         // Then
     }
 }

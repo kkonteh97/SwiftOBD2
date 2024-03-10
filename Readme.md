@@ -1,19 +1,15 @@
 # SwiftOBD2
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)  ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
+
 A Swift package  is designed to facilitate communication with vehicles using an ELM327 OBD2 adapter. It provides a simple and powerful interface for interacting with the vehicle's onboard diagnostics system, retrieving real-time data, and performing diagnostics.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) ![Swift](https://img.shields.io/badge/swift-F54A2A?ogo=swift&logoColor=white) ![Swift Package Manager](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-brightgreen) ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.3%20%7C%205.4%20%7C%205.5%20%7C%205.6-orange) ![Xcode Version](https://img.shields.io/badge/Xcode-12.5%20%7C%2013.0-blue) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
 
-Check out the [SwiftOBD2 Demo App](https://github.com/kkonteh97/SwiftOBD2App) for a practical example of how to use this package in an iOS app.
+## Requirements
 
-## MileStones
-
-- [x] Connect to an OBD2 adapter via Bluetooth Low Energy (BLE) 
-- [x] Retrieve error codes (DTCs) stored in the vehicle's OBD2 system
-- [x] Retrieve various OBD2 Parameter IDs (PIDs) for monitoring vehicle parameters
-- [x] Clear error codes (DTCs) stored in the vehicle's OBD2 system
-- [ ] Run tests on the OBD2 system
-- [ ] Connect to an OBD2 adapter via WIFI
+- iOS 14.0+ / macOS 11.0+
+- Xcode 13.0+
+- Swift 5.0+
 
 ## Key Features
 
@@ -34,6 +30,20 @@ Check out the [SwiftOBD2 Demo App](https://github.com/kkonteh97/SwiftOBD2App) fo
 * Adaptability and Configuration
     * Can switch between Bluetooth and Wi-Fi communication seamlessly.
     * Allows for testing and development with a demo mode.
+    
+
+## Roadmap
+
+- [x] Connect to an OBD2 adapter via Bluetooth Low Energy (BLE) 
+- [x] Retrieve error codes (DTCs) stored in the vehicle's OBD2 system
+- [x] Retrieve various OBD2 Parameter IDs (PIDs) for monitoring vehicle parameters
+- [x] Retrieve real-time vehicle data (RPM, speed, etc.) using standard OBD2 PIDs
+- [x] Get supported PIDs from the vehicle
+- [x] Clear error codes (DTCs) stored in the vehicle's OBD2 system
+- [ ] Run tests on the OBD2 system
+- [ ] Retrieve vehicle status since DTCs cleared
+- [ ] Connect to an OBD2 adapter via WIFI
+- [ ] Add support for custom PIDs
     
     
 ### Setting Up a Project

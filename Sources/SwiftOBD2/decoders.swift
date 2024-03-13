@@ -295,7 +295,6 @@ func fuelRate(_ data: Data) -> MeasurementResult? {
     return MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers)
 }
 
-
 func injectTiming(_ data: Data) -> MeasurementResult? {
     let value = (Double(bytesToInt(data)) - 26880) / 128
     return MeasurementResult(value: value, unit: UnitPressure.degrees)

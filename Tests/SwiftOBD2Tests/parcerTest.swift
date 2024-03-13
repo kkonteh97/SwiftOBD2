@@ -10,9 +10,9 @@ import XCTest
 
 final class OBDParcerTest: XCTestCase {
     func testOBDParcer() {
-        let responses: [[String]] = [["7E8 06 41 00 BE 3F A8 13 00"], 
+        let responses: [[String]] = [["7E8 06 41 00 BE 3F A8 13 00"],
                                      ["7E8 06 41 00 FF 00 00 00 00"],
-                                     ["7E8 10 14 49 02 01 31 4E 34 ", "7E8 21 41 4C 33 41 50 37 44 ", "7E8 22 43 31 39 39 35 38 33 "]     
+                                     ["7E8 10 14 49 02 01 31 4E 34 ", "7E8 21 41 4C 33 41 50 37 44 ", "7E8 22 43 31 39 39 35 38 33 "]
         ]
         self.measure {
             for response in responses {

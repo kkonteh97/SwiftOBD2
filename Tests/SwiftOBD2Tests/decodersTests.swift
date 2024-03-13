@@ -59,19 +59,19 @@ final class decodersTests: XCTestCase {
     }
 
     func testEvapPressureAlt() {
-        XCTAssertEqual(evapPressureAlt(Data([0x00, 0x00])), MeasurementResult(value: -32767, unit:  Unit.Pascal))
-        XCTAssertEqual(evapPressureAlt(Data([0x7F, 0xFF])), MeasurementResult(value: 0, unit:  Unit.Pascal))
-        XCTAssertEqual(evapPressureAlt(Data([0xFF, 0xFF])), MeasurementResult(value: 32768, unit:  Unit.Pascal))
+        XCTAssertEqual(evapPressureAlt(Data([0x00, 0x00])), MeasurementResult(value: -32767, unit: Unit.Pascal))
+        XCTAssertEqual(evapPressureAlt(Data([0x7F, 0xFF])), MeasurementResult(value: 0, unit: Unit.Pascal))
+        XCTAssertEqual(evapPressureAlt(Data([0xFF, 0xFF])), MeasurementResult(value: 32768, unit: Unit.Pascal))
     }
 
     func testTimingAdvance() {
-        XCTAssertEqual(timingAdvance(Data([0x00])), MeasurementResult(value: -64, unit:  UnitAngle.degrees))
-        XCTAssertEqual(timingAdvance(Data([0xFF])), MeasurementResult(value: 63.5, unit:  UnitAngle.degrees))
+        XCTAssertEqual(timingAdvance(Data([0x00])), MeasurementResult(value: -64, unit: UnitAngle.degrees))
+        XCTAssertEqual(timingAdvance(Data([0xFF])), MeasurementResult(value: 63.5, unit: UnitAngle.degrees))
     }
 
     func testInjectTiming() {
         XCTAssertEqual(injectTiming(Data([0x00, 0x00])), MeasurementResult(value: -210, unit: UnitPressure.degrees))
-        XCTAssertEqual(injectTiming(Data([0xFF, 0xFF]))!.value,  301, accuracy: 1)
+        XCTAssertEqual(injectTiming(Data([0xFF, 0xFF]))!.value, 301, accuracy: 1)
     }
 
     func testStatus() {
@@ -101,7 +101,7 @@ final class decodersTests: XCTestCase {
             TroubleCode(code: "B0003", description: "No description available.")
         ])
 
-        XCTAssertEqual(dtc(Data([0x00, 0x00, 0x01, 0x04, 0x00, 0x00])),  [
+        XCTAssertEqual(dtc(Data([0x00, 0x00, 0x01, 0x04, 0x00, 0x00])), [
             TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent")
         ])
     }

@@ -33,24 +33,24 @@ class MOCKComm: CommProtocol {
             return ["NO DATA"]
         }
     }
-    
+
     func demoModeSwitch(_ isDemoMode: Bool) {
     }
-    
+
     func disconnectPeripheral() {
         connectionState = .disconnected
         obdDelegate?.connectionStateChanged(state: .disconnected)
     }
-    
+
     func connectAsync() async throws {
         connectionState = .connectedToAdapter
         obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
     }
-    
+
     @Published var connectionState: ConnectionState = .disconnected
     var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
     var obdDelegate: OBDServiceDelegate?
-    
+
 }
 
 class WifiManager: CommProtocol {

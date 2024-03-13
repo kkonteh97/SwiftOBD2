@@ -13,7 +13,7 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "SwiftOBD2",
-            targets: ["SwiftOBD2"]),
+            targets: ["SwiftOBD2"])
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -22,6 +22,6 @@ let package = Package(
             name: "SwiftOBD2"),
         .testTarget(
             name: "SwiftOBD2Tests",
-            dependencies: ["SwiftOBD2"]),
+            dependencies: ["SwiftOBD2"])
     ]
 )

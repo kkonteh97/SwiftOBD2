@@ -26,7 +26,7 @@ final class ELM327Test: XCTestCase {
         sut = nil
     }
 
-    func testSetupVehicle()  {
+    func testSetupVehicle() {
         // Given
         guard let sut = sut else {
             XCTFail("Expected sut to be not nil")

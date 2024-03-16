@@ -1,84 +1,11 @@
-import CoreBluetooth
+//
+//  File.swift
+//  
+//
+//  Created by kemo konteh on 3/16/24.
+//
+
 import Foundation
-
-class ServiceCharacteristicsMock {
-    private var value: Data = .init([UInt8(0x01)])
-
-    private let serviceUuid1: CBUUID = .init(string: "00112233-4455-6677-8899-AABBCCDDEEFF")
-    private let characteristicUuid1ForService1: CBUUID = .init(string: "10112233-4455-6677-8899-AABBCCDDEEFF")
-    //    private let characteristicUuid2ForService1: CBUUID = CBUUID(string: "10112233-4455-6677-8899-AABBCCDDEEFF")
-
-    private let ecuServiceUuid: CBUUID = .init(string: "FFE0")
-    private let ecuCharacteristicUuid: CBUUID = .init(string: "FFE1")
-
-    public func service() -> [CBMutableService] {
-        return [
-            CBMutableService(type: serviceUuid1, primary: true),
-            CBMutableService(type: ecuServiceUuid, primary: true)
-        ]
-    }
-
-    public func characteristics(_ serviceUUID: CBUUID) -> [CBCharacteristic] {
-        switch serviceUUID {
-        case serviceUuid1:
-            return [
-                mutableCharacteristic(uuid: characteristicUuid1ForService1, properties: [.read])
-                //                mutableCharacteristic(uuid: characteristicUuid2ForService1, properties: [.read]),
-            ]
-        case ecuServiceUuid:
-            return [
-                mutableCharacteristic(uuid: ecuCharacteristicUuid, properties: [.read, .write, .notify])
-            ]
-        default:
-            return []
-        }
-    }
-
-    private func mutableCharacteristic(uuid: CBUUID, properties: CBCharacteristicProperties) -> CBMutableCharacteristic {
-        return CBMutableCharacteristic(type: uuid,
-                                       properties: properties,
-                                       value: nil,
-                                       permissions: .readable)
-    }
-
-    public func value(uuid: CBUUID) -> Data {
-        switch uuid {
-        case characteristicUuid1ForService1:
-            return value
-        case ecuCharacteristicUuid:
-            return value
-        default:
-            return Data()
-        }
-    }
-
-    let header = "7E8"
-
-    public func writeValue(uuid: CBUUID, writeValue: Data, ecuSettings: inout MockECUSettings) {
-        guard let dataString = String(data: writeValue, encoding: .utf8) else {
-            print("Could not convert data to string")
-            return
-        }
-        switch uuid {
-        case characteristicUuid1ForService1:
-            value = writeValue
-
-        case ecuCharacteristicUuid:
-            if let command = MockResponse(rawValue: dataString) {
-                let response = command.response(ecuSettings: &ecuSettings)
-
-                guard let responseData = response.data(using: .utf8) else {
-                    print("Could not convert response to data")
-                    value = Data()
-                    return
-                }
-                value = responseData
-            } else {}
-        default:
-            break
-        }
-    }
-}
 
 enum CommandAction {
     case setHeaderOn
@@ -91,6 +18,33 @@ struct MockECUSettings {
     var headerOn = false
     var echo = true
     var vinNumber = ""
+}
+
+class MOCKComm: CommProtocol {
+    @Published var connectionState: ConnectionState = .disconnected
+    var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
+    var obdDelegate: OBDServiceDelegate?
+
+    var ecuSettings: MockECUSettings = .init()
+
+    func sendCommand(_ command: String) async throws -> [String] {
+        if let command = MockResponse(rawValue: command) {
+            let response = command.response(ecuSettings: &ecuSettings)
+            return [response]
+        } else {
+            return ["NO DATA"]
+        }
+    }
+
+    func disconnectPeripheral() {
+        connectionState = .disconnected
+        obdDelegate?.connectionStateChanged(state: .disconnected)
+    }
+
+    func connectAsync() async throws {
+        connectionState = .connectedToAdapter
+        obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
+    }
 }
 
 enum MockResponse: String, CaseIterable {

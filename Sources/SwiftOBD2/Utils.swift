@@ -164,23 +164,3 @@ public enum PROTOCOL: String, Codable {
         NONE
     ]
 }
-
-// enum GET_DTCS_STEP{
-//
-//    //Setup goes in this order
-//    case
-//    send_0101,
-//    send_03,
-//    finished,
-//    none
-//
-//    func next() -> GET_DTCS_STEP{
-//        switch (self) {
-//
-//        case .send_0101: return .send_03
-//        case .send_03: return .finished
-//        case .finished: return .none
-//        case .none: return .none
-//        }
-//    }
-// } //END GET_DTCS_STEP

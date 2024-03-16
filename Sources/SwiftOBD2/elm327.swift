@@ -102,6 +102,9 @@ class ELM327 {
         return OBDInfo(vin: vin, supportedPIDs: supportedPIDs, obdProtocol: obdProtocol, ecuMap: ecuMap)
     }
 
+    /// Establishes a connection to the vehicle's ECU.
+    /// - Parameter autoProtocol: Whether to attempt automatic protocol detection.
+    /// - Returns: The established OBD protocol.
     func connectToVehicle(autoProtocol: Bool) async throws -> PROTOCOL? {
         if autoProtocol {
             guard let obdProtocol = try await autoProtocolDetection() else {

@@ -21,35 +21,6 @@ enum CommunicationError: Error {
     case errorOccurred(Error)
 }
 
-class MOCKComm: CommProtocol {
-    var ecuSettings: MockECUSettings = .init()
-
-    func sendCommand(_ command: String) async throws -> [String] {
-        if let command = MockResponse(rawValue: command) {
-            let response = command.response(ecuSettings: &ecuSettings)
-            return [response]
-        } else {
-            return ["NO DATA"]
-        }
-    }
-
-    func demoModeSwitch(_: Bool) {}
-
-    func disconnectPeripheral() {
-        connectionState = .disconnected
-        obdDelegate?.connectionStateChanged(state: .disconnected)
-    }
-
-    func connectAsync() async throws {
-        connectionState = .connectedToAdapter
-        obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
-    }
-
-    @Published var connectionState: ConnectionState = .disconnected
-    var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
-    var obdDelegate: OBDServiceDelegate?
-}
-
 class WifiManager: CommProtocol {
     var obdDelegate: OBDServiceDelegate?
 
@@ -119,6 +90,4 @@ class WifiManager: CommProtocol {
     func disconnectPeripheral() {
         tcp?.cancel()
     }
-
-    func demoModeSwitch(_: Bool) {}
 }

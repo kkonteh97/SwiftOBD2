@@ -50,7 +50,6 @@ class MockBLEManager: NSObject, ObservableObject, CBPeripheralProtocolDelegate, 
                                                manager: centralManager as! CBCentralManagerMock)
         connectionState = .connectedToAdapter
         connectedPeripheral?.delegate = self
-        //        print("BLEManager initialized")
     }
 
     // MARK: - Central Manager Control Methods
@@ -121,11 +120,13 @@ class MockBLEManager: NSObject, ObservableObject, CBPeripheralProtocolDelegate, 
 
     func didDiscoverServices(_ peripheral: CBPeripheralProtocol, error: Error?) {
         for service in peripheral.services ?? [] {
-            //            if service.uuid == CBUUID(string: "FFE0") {
-            peripheral.discoverCharacteristics([CBUUID(string: "FFE1"), CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
-            //            } else if service.uuid == CBUUID(string: "FFF0") {
-            //                peripheral.discoverCharacteristics([CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
-            //            }
+            if service.uuid == CBUUID(string: "FFE0") {
+                    peripheral.discoverCharacteristics([CBUUID(string: "FFE1"), CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
+                } else if service.uuid == CBUUID(string: "FFF0") {
+                    peripheral.discoverCharacteristics([CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
+                } else  {
+                    peripheral.discoverServices(nil)
+            }
         }
     }
 

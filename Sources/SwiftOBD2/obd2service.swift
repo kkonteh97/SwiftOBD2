@@ -116,7 +116,9 @@ public class OBDService: ObservableObject {
                                 promise(.success(results))
                             }
                         } catch {
-                            promise(.failure(error))
+                            DispatchQueue.main.async {
+                                promise(.failure(error))
+                            }
                         }
                     }
                 }
@@ -124,10 +126,12 @@ public class OBDService: ObservableObject {
             .eraseToAnyPublisher()
     }
 
+    /// Adds an OBD2 command to the list of commands to be requested.
     public func addPID(_ pid: OBDCommand) {
         self.pidList.append(pid)
     }
 
+    /// Removes an OBD2 command from the list of commands to be requested.
     public func removePID(_ pid: OBDCommand) {
         self.pidList.removeAll { $0 == pid }
     }
@@ -150,6 +154,10 @@ public class OBDService: ObservableObject {
         return results
     }
 
+    /// Sends an OBD2 command to the vehicle and returns the raw response.
+    ///  - Parameter command: The OBD2 command to send.
+    ///  - Returns: The raw response from the vehicle.
+    ///  - Throws: Errors that might occur during the request process.
     public func sendCommand(_ command: OBDCommand) async throws -> DecodeResult? {
         do {
             let response = try await sendCommand(command.properties.command)
@@ -161,29 +169,48 @@ public class OBDService: ObservableObject {
         }
     }
 
+    /// Sends an OBD2 command to the vehicle and returns the raw response.
+    ///   - Parameter command: The OBD2 command to send.
+    ///   - Returns: The raw response from the vehicle.
     public func getSupportedPIDs() async -> [OBDCommand] {
-        return await elm327.getSupportedPIDs()
+        do {
+            return await elm327.getSupportedPIDs()
+        } catch {
+            return []
+        }
     }
 
+    ///  Scans for trouble codes and returns the result.
+    ///  - Returns: The trouble codes found on the vehicle.
+    ///  - Throws: Errors that might occur during the request process.
     public func scanForTroubleCodes() async throws -> [TroubleCode] {
-        guard self.connectionState == .connectedToVehicle else {
-            throw OBDServiceError.notConnectedToVehicle
+        do {
+            return try await elm327.scanForTroubleCodes()
+        } catch {
+            throw OBDServiceError.scanFailed(underlyingError: error)
         }
-        return try await elm327.scanForTroubleCodes()
     }
 
+    /// Clears the trouble codes found on the vehicle.
+    ///  - Throws: Errors that might occur during the request process.
+    ///     - `OBDServiceError.notConnectedToVehicle` if the adapter is not connected to a vehicle.
     public func clearTroubleCodes() async throws {
-        guard self.connectionState == .connectedToVehicle else {
-            throw OBDServiceError.notConnectedToVehicle
+        do {
+            try await elm327.clearTroubleCodes()
+        } catch {
+            throw OBDServiceError.clearFailed(underlyingError: error)
         }
-        try await elm327.clearTroubleCodes()
     }
 
+    /// Returns the vehicle's status.
+    ///  - Returns: The vehicle's status.
+    ///  - Throws: Errors that might occur during the request process.
     public func getStatus() async throws -> Status? {
-        guard self.connectionState == .connectedToVehicle else {
-            throw OBDServiceError.notConnectedToVehicle
+        do {
+            return try await elm327.getStatus()
+        } catch {
+            throw error
         }
-        return try await elm327.getStatus()
     }
 
     public func switchToDemoMode(_ isDemoMode: Bool) {
@@ -191,7 +218,11 @@ public class OBDService: ObservableObject {
     }
 
     public func sendCommand(_ message: String, withTimeoutSecs: TimeInterval = 5) async throws -> [String] {
-        return try await elm327.sendCommand(message)
+        do {
+            return try await elm327.sendCommand(message)
+        } catch {
+            throw OBDServiceError.commandFailed(command: message, error: error)
+        }
     }
 }
 
@@ -204,6 +235,8 @@ enum OBDServiceError: Error {
     case noAdapterFound
     case notConnectedToVehicle
     case adapterConnectionFailed(underlyingError: Error)
+    case scanFailed(underlyingError: Error)
+    case clearFailed(underlyingError: Error)
     case commandFailed(command: String, error: Error)
 }
 

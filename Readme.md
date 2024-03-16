@@ -2,8 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)  ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
 
-A Swift package  is designed to facilitate communication with vehicles using an ELM327 OBD2 adapter. It provides a simple and powerful interface for interacting with the vehicle's onboard diagnostics system, retrieving real-time data, and performing diagnostics.
-
+SwiftOBD2 is a Swift package designed to simplify communication with vehicles using an ELM327 OBD2 adapter. It provides a straightforward and powerful interface for interacting with your vehicle's onboard diagnostics system, allowing you to retrieve real-time data and perform diagnostics. [Sample App](https://github.com/kkonteh97/SwiftOBD2App).
 
 ## Requirements
 
@@ -235,6 +234,6 @@ Commit your changes with descriptive messages.
 Submit a pull request for review.
 License
 
-The Swift OBD package is distributed under the MIT license. See the LICENSE file for more information.
+The Swift OBD package is distributed under the MIT license. See the [LICENSE](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) file for more details.
 
-If you like this package, don't forget to give it a ⭐️. It helps to maintain the package and keep it up to date.
+Give this package a ⭐️ if you find it useful!

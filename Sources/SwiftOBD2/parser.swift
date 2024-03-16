@@ -13,10 +13,15 @@ enum FrameType: UInt8, Codable {
     case consecutiveFrame = 0x20
 }
 
-extension String {
-    var isHex: Bool {
-        return !isEmpty && allSatisfy { $0.isHexDigit }
-    }
+public enum ECUID: UInt8, Codable {
+    case engine = 0x00
+    case transmission = 0x01
+    case unknown = 0x02
+}
+
+enum TxId: UInt8, Codable {
+    case engine = 0x00
+    case transmission = 0x01
 }
 
 struct OBDParcer {

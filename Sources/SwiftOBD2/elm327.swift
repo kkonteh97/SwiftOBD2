@@ -242,10 +242,8 @@ class ELM327 {
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         let statueMessages = OBDParcer(statusResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let statusData = statueMessages?[0].data else {
-            return nil
-        }
-        guard let decodedStatus = statusCommand.properties.decode(data: statusData) else {
+        guard let statusData = statueMessages?[0].data, 
+                let decodedStatus = statusCommand.properties.decode(data: statusData)  else {
             return nil
         }
         return decodedStatus.statusResult
@@ -276,8 +274,8 @@ class ELM327 {
         guard let vinResponse = try? await sendCommand(command.properties.command) else {
             return nil
         }
-        print(vinResponse)
         let messages = OBDParcer(vinResponse, idBits: obdProtocol.idBits)?.messages
+
         guard let data = messages?[0].data,
               var vinString = String(bytes: data, encoding: .utf8) else {
             return nil
@@ -357,6 +355,8 @@ extension ELM327 {
 }
 
 extension ELM327 {
+    /// Get the supported PIDs
+    /// - Returns: Array of supported PIDs
     internal func getSupportedPIDs() async -> [OBDCommand] {
         let pidGetters = OBDCommand.pidGetters
         var supportedPIDs: [OBDCommand] = []
@@ -409,52 +409,6 @@ extension ELM327 {
         }
         return supportedPIDs
     }
-
-    private func extractDataLength(_ startIndex: Int, _ response: [String]) throws -> Int? {
-        guard let lengthHex = UInt8(response[startIndex - 1], radix: 16) else {
-            return nil
-        }
-        // Extract frame data, type, and dataLen
-        // Ex.
-        //     ||
-        // 7E8 06 41 00 BE 7F B8 13
-
-        let frameType = FrameType(rawValue: lengthHex & 0xF0)
-
-        switch frameType {
-        case .singleFrame:
-            return Int(lengthHex) & 0x0F
-        case .firstFrame:
-            guard let secondLengthHex = UInt8(response[startIndex - 2], radix: 16) else {
-                throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
-            }
-            return Int(lengthHex) + Int(secondLengthHex)
-        case .consecutiveFrame:
-            return Int(lengthHex)
-        default:
-            return nil
-        }
-    }
-
-    private func hexToBinary(_ hexString: String) -> String? {
-        // Create a scanner to parse the hex string
-        let scanner = Scanner(string: hexString)
-
-        // Check if the string starts with "0x" or "0X" and skip it if present
-        scanner.charactersToBeSkipped = CharacterSet(charactersIn: "0x")
-        var intValue: UInt64 = 0
-
-        // Use the scanner to convert the hex string to an integer
-        if scanner.scanHexInt64(&intValue) {
-            // Convert the integer to a binary string with leading zeros
-            let binaryString = String(intValue, radix: 2)
-            let leadingZerosCount = hexString.count * 4 - binaryString.count
-            let leadingZeros = String(repeating: "0", count: leadingZerosCount)
-            return leadingZeros + binaryString
-        }
-        // Return nil if the conversion fails
-        return nil
-    }
 }
 
 struct BatchedResponse {
@@ -485,26 +439,15 @@ extension String {
             return UInt8(self[position...index(after: position)], radix: 16)
         }
     }
-}
 
-public enum ECUID: UInt8, Codable {
-    case engine = 0x00
-    case transmission = 0x01
-    case unknown = 0x02
-}
-
-enum TxId: UInt8, Codable {
-    case engine = 0x00
-    case transmission = 0x01
+    var isHex: Bool {
+        return !isEmpty && allSatisfy { $0.isHexDigit }
+    }
 }
 
 extension Data {
     func bitCount() -> Int {
         return self.count * 8
-    }
-
-    func hexString() -> String {
-        return map { String(format: "%02hhx", $0) }.joined(separator: " ")
     }
 }
 

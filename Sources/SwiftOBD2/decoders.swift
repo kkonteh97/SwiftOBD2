@@ -1,5 +1,5 @@
 //
-//  Decoders.swift
+//  decoders.swift
 //  SmartOBD2
 //
 //  Created by kemo konteh on 9/18/23.
@@ -41,21 +41,21 @@ struct StatusTest: Codable, Hashable {
 struct BitArray {
     let data: Data
     var binaryArray: [Int] {
-       // Convert Data to binary array representation
-       var result = [Int]()
-       for byte in data {
-           for i in 0..<8 {
-               // Extract each bit of the byte
-               let bit = (byte >> (7 - i)) & 1
-               result.append(Int(bit))
-           }
-       }
-       return result
+        // Convert Data to binary array representation
+        var result = [Int]()
+        for byte in data {
+            for i in 0 ..< 8 {
+                // Extract each bit of the byte
+                let bit = (byte >> (7 - i)) & 1
+                result.append(Int(bit))
+            }
+        }
+        return result
     }
 
     func index(of value: Int) -> Int? {
-           // Find the index of the given value (1 or 0)
-           return binaryArray.firstIndex(of: value)
+        // Find the index of the given value (1 or 0)
+        return binaryArray.firstIndex(of: value)
     }
 
     func value(at range: Range<Int>) -> UInt8 {
@@ -229,10 +229,10 @@ public enum Decoders: Codable {
     case none
 }
 
-func decodeSpeed(_ data: Data, _ isMetric: MeasurementUnits) -> DecodeResult {
+func decodeSpeed(_ data: Data, _: MeasurementUnits) -> DecodeResult {
     let uas = UAS(signed: false, scale: 1, unit: UnitSpeed.kilometersPerHour)
     let measurement = uas.decode(bytes: data)
-    return  .measurementResult(measurement)
+    return .measurementResult(measurement)
 }
 
 func KPHtoMPH(_ kph: Double) -> Double {
@@ -267,7 +267,7 @@ func decodeMonitor(_ data: Data) -> Monitor? {
 
     // look at data in blocks of 9 bytes (one test result)
     for i in stride(from: 0, to: databytes.count, by: 9) {
-        let subdata = databytes.subdata(in: i..<i+9)
+        let subdata = databytes.subdata(in: i ..< i + 9)
 //        print("\nSubdata: ", subdata.compactMap {String(format: "%02x", $0)})
         let test = parse_monitor_test(subdata)
         if let test = test, let tid = test.tid {
@@ -307,7 +307,7 @@ func evapPressureAlt(_ data: Data) -> MeasurementResult? {
 }
 
 func absEvapPressure(_ data: Data) -> MeasurementResult? {
-    let value =  Double(bytesToInt(data)) / 200
+    let value = Double(bytesToInt(data)) / 200
     return MeasurementResult(value: value, unit: UnitPressure.kilopascals)
 }
 
@@ -352,8 +352,8 @@ func o2Sensors(_ data: Data) -> String? {
     //                tuple(bits[6:]),  # bank 4
     //            )
 
-    let bank1 = Array(bits.binaryArray[0..<4])
-    let bank2 = Array(bits.binaryArray[4..<8])
+    let bank1 = Array(bits.binaryArray[0 ..< 4])
+    let bank2 = Array(bits.binaryArray[4 ..< 8])
 
     return "\(bank1), \(bank2)"
 }
@@ -368,10 +368,10 @@ func o2SensorsAlt(_ data: Data) -> String? {
     //                tuple(bits[6:]),  # bank 4
     //            )
 
-    let bank1 = Array(bits.binaryArray[0..<2])
-    let bank2 = Array(bits.binaryArray[2..<4])
-    let bank3 = Array(bits.binaryArray[4..<6])
-    let bank4 = Array(bits.binaryArray[6..<8])
+    let bank1 = Array(bits.binaryArray[0 ..< 2])
+    let bank2 = Array(bits.binaryArray[2 ..< 4])
+    let bank3 = Array(bits.binaryArray[4 ..< 6])
+    let bank4 = Array(bits.binaryArray[6 ..< 8])
 
     return "\(bank1), \(bank2), \(bank3), \(bank4)"
 }
@@ -392,8 +392,8 @@ func fuelStatus(_ data: Data) -> String? {
     var status_1: String?
     var status_2: String?
 
-    let highBits = Array(bits.binaryArray[0..<8])
-    let lowBits = Array(bits.binaryArray[8..<16])
+    let highBits = Array(bits.binaryArray[0 ..< 8])
+    let lowBits = Array(bits.binaryArray[8 ..< 16])
 
     if highBits.filter({ $0 == 1 }).count == 1, let index = highBits.firstIndex(of: 1) {
         if 7 - index < FUEL_STATUS.count {
@@ -439,7 +439,7 @@ func dtc(_ data: Data) -> [TroubleCode]? {
     // send data to parceDtc 2 byte at a time
     for n in stride(from: 0, to: data.count - 1, by: 2) {
         let endIndex = min(n + 1, data.count - 1)
-        guard let dtc = parseDTC(data[n...endIndex]) else {
+        guard let dtc = parseDTC(data[n ... endIndex]) else {
             continue
         }
         codes.append(dtc)
@@ -447,7 +447,7 @@ func dtc(_ data: Data) -> [TroubleCode]? {
     return codes
 }
 
- func singleDtc(_ data: Data) -> TroubleCode? {
+func singleDtc(_ data: Data) -> TroubleCode? {
     return parseDTC(data)
 }
 
@@ -465,7 +465,7 @@ func percentCentered(_ data: Data) -> MeasurementResult? {
 
 // -128 to 128 mA
 func currentCentered(_ data: Data) -> MeasurementResult? {
-    var value = Double(bytesToInt(data[2...3]))
+    var value = Double(bytesToInt(data[2 ... 3]))
     value = (value / 256.0) - 128.0
     return MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes)
 }
@@ -477,7 +477,7 @@ func sensorVoltage(_ data: Data) -> MeasurementResult? {
 }
 
 func sensorVoltageBig(_ data: Data) -> MeasurementResult? {
-    let value = bytesToInt(data[2..<4])
+    let value = bytesToInt(data[2 ..< 4])
     let voltage = (Double(value) * 8.0) / 65535
     return MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)
 }
@@ -486,7 +486,7 @@ func sensorVoltageBig(_ data: Data) -> MeasurementResult? {
 func fuelPressure(_ data: Data) -> MeasurementResult? {
     var value = Double(data[0])
     value = value * 3
-    return  MeasurementResult(value: value, unit: UnitPressure.kilopascals)
+    return MeasurementResult(value: value, unit: UnitPressure.kilopascals)
 }
 
 // 0 to 255 kPa
@@ -506,17 +506,17 @@ func airStatus(_ data: Data) -> MeasurementResult? {
     return nil
 }
 
-func decodeTemp(_ data: Data, isMetric: MeasurementUnits = .metric) -> MeasurementResult? {
+func decodeTemp(_ data: Data, isMetric _: MeasurementUnits = .metric) -> MeasurementResult? {
     let value = Double(bytesToInt(data)) - 40.0
     return MeasurementResult(value: value, unit: UnitTemperature.celsius)
 }
 
 func timingAdvance(_ data: Data) -> MeasurementResult? {
     let value = Double(data.first ?? 0) / 2.0 - 64.0
-    return  MeasurementResult(value: value, unit: UnitAngle.degrees)
+    return MeasurementResult(value: value, unit: UnitAngle.degrees)
 }
 
- func decodeStatus(_ data: Data, isMetric: MeasurementUnits = .metric) -> Status {
+func decodeStatus(_ data: Data, isMetric _: MeasurementUnits = .metric) -> Status {
     let IGNITIONTYPE = ["Spark", "Compression"]
     //            ┌Components not ready
     //            |┌Fuel not ready
@@ -536,7 +536,7 @@ func timingAdvance(_ data: Data) -> MeasurementResult? {
 
     var output = Status()
     output.MIL = bits.binaryArray[0] == 1
-    output.dtcCount = bits.value(at: 1..<8)
+    output.dtcCount = bits.value(at: 1 ..< 8)
     output.ignitionType = IGNITIONTYPE[bits.binaryArray[12]]
 
     // load the 3 base tests that are always present
@@ -567,9 +567,9 @@ func parse_monitor_test(_ data: Data) -> MonitorTest? {
         return nil
     }
 
-    let valueRange = data[3...4]
-    let minRange = data[5...6]
-    let maxRange =   data[7...]
+    let valueRange = data[3 ... 4]
+    let minRange = data[5 ... 6]
+    let maxRange = data[7...]
 
     test.tid = tid
     test.value = uas.decode(bytes: valueRange)
@@ -590,8 +590,8 @@ func parseDTC(_ data: Data) -> TroubleCode? {
     //         [][][  in hex   ]
     //         | / /
     // DTC:    C0123
-    var dtc = ["P", "C", "B", "U"][Int(first) >> 6]  // the last 2 bits of the first byte
-    dtc += String((first >> 4) & 0b0011)  // the next pair of 2 bits. Mask off the bits we read above
+    var dtc = ["P", "C", "B", "U"][Int(first) >> 6] // the last 2 bits of the first byte
+    dtc += String((first >> 4) & 0b0011) // the next pair of 2 bits. Mask off the bits we read above
     dtc += String(format: "%04X", (UInt16(first) & 0x3F) << 8 | UInt16(second)).dropFirst()
     // pull description from the DTCs array
 
@@ -599,7 +599,7 @@ func parseDTC(_ data: Data) -> TroubleCode? {
 }
 
 func processBaseTest(_ testName: String, _ index: Int, _ bits: BitArray, _ output: inout Status) {
-    let test = StatusTest(testName, (bits.binaryArray[13 + index] != 0), (bits.binaryArray[9 + index] == 0))
+    let test = StatusTest(testName, bits.binaryArray[13 + index] != 0, bits.binaryArray[9 + index] == 0)
     switch testName {
     case "MISFIRE_MONITORING":
         output.misfireMonitoring = test

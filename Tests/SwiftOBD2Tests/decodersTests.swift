@@ -1,12 +1,12 @@
 //
 //  decodersTests.swift
-//  
+//
 //
 //  Created by kemo konteh on 2/28/24.
 //
 
-import XCTest
 @testable import SwiftOBD2
+import XCTest
 
 final class decodersTests: XCTestCase {
     func testPercent() {
@@ -15,26 +15,26 @@ final class decodersTests: XCTestCase {
     }
 
     func testPercentCentered() {
-        XCTAssertEqual(percentCentered( Data([0x00])), MeasurementResult(value: -100, unit: Unit.percent))
-        XCTAssertEqual(percentCentered( Data([0x80])), MeasurementResult(value: 0, unit: Unit.percent))
+        XCTAssertEqual(percentCentered(Data([0x00])), MeasurementResult(value: -100, unit: Unit.percent))
+        XCTAssertEqual(percentCentered(Data([0x80])), MeasurementResult(value: 0, unit: Unit.percent))
         XCTAssertEqual(percentCentered(Data([0xFF]))!.value, MeasurementResult(value: 100, unit: Unit.percent).value, accuracy: 1)
     }
 
     func testTemp() {
-        XCTAssertEqual(decodeTemp( Data([0x00])), MeasurementResult(value: -40, unit: UnitTemperature.celsius))
-        XCTAssertEqual(decodeTemp( Data([0xFF])), MeasurementResult(value: 215, unit: UnitTemperature.celsius))
+        XCTAssertEqual(decodeTemp(Data([0x00])), MeasurementResult(value: -40, unit: UnitTemperature.celsius))
+        XCTAssertEqual(decodeTemp(Data([0xFF])), MeasurementResult(value: 215, unit: UnitTemperature.celsius))
         XCTAssertEqual(decodeTemp(Data([0x03, 0xE8])), MeasurementResult(value: 960, unit: UnitTemperature.celsius))
     }
 
     func testCurrentCentered() {
-        XCTAssertEqual(currentCentered( Data([0x00, 0x00, 0x00, 0x00])), MeasurementResult(value: -128, unit: UnitElectricCurrent.milliamperes))
-        XCTAssertEqual(currentCentered( Data([0x00, 0x00, 0x80, 0x00])), MeasurementResult(value: 0, unit: UnitElectricCurrent.milliamperes))
+        XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0x00, 0x00])), MeasurementResult(value: -128, unit: UnitElectricCurrent.milliamperes))
+        XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0x80, 0x00])), MeasurementResult(value: 0, unit: UnitElectricCurrent.milliamperes))
         XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0xFF, 0xFF]))!.value, 128.0, accuracy: 0.01)
     }
 
     func testSensorVoltage() {
-        XCTAssertEqual(sensorVoltage( Data([0x00, 0x00])), MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts))
-        XCTAssertEqual(sensorVoltage( Data([0xFF, 0xFF])), MeasurementResult(value: 1.275, unit: UnitElectricPotentialDifference.volts))
+        XCTAssertEqual(sensorVoltage(Data([0x00, 0x00])), MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts))
+        XCTAssertEqual(sensorVoltage(Data([0xFF, 0xFF])), MeasurementResult(value: 1.275, unit: UnitElectricPotentialDifference.volts))
     }
 
     func testSensorVoltageBig() {
@@ -132,6 +132,5 @@ final class decodersTests: XCTestCase {
         XCTAssertEqual(tests2[0x05]?.name, "RTLSwitchTime")
         XCTAssertEqual(tests2[0x05]!.value!.value, 72, accuracy: 0.1)
         XCTAssertEqual(tests2[0x05]!.value!.unit, UnitDuration.milliseconds)
-
     }
 }

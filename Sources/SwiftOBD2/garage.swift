@@ -1,17 +1,18 @@
 //
-//  Garage.swift
+//  garage.swift
 //  SMARTOBD2
 //
 //  Created by kemo konteh on 9/30/23.
 //
 
-import Foundation
 import Combine
+import Foundation
 
 public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public static func == (lhs: Vehicle, rhs: Vehicle) -> Bool {
         return lhs.id == rhs.id
     }
+
     public let id: Int
     public var make: String
     public var model: String
@@ -41,34 +42,34 @@ public class Garage: ObservableObject {
 
     private var nextId = 0 // Initialize with the next integer ID
 
-    public init () {
+    public init() {
         // Load garageVehicles from UserDefaults
 //        UserDefaults.standard.removeObject(forKey: "garageVehicles")
 //        UserDefaults.standard.removeObject(forKey: "currentCarId")
-        self.currentVehicleId = UserDefaults.standard.integer(forKey: "currentCarId")
+        currentVehicleId = UserDefaults.standard.integer(forKey: "currentCarId")
 
         #if targetEnvironment(simulator)
-        loadMockGarage()
+            loadMockGarage()
         #else
-        loadGarage()
+            loadGarage()
         #endif
     }
 
     func loadGarage() {
         if let data = UserDefaults.standard.data(forKey: "garageVehicles"),
            let decodedVehicles = try? JSONDecoder().decode([Vehicle].self, from: data) {
-            self.garageVehicles = decodedVehicles
+            garageVehicles = decodedVehicles
         } else {
-            self.garageVehicles = []
+            garageVehicles = []
         }
 
         // Determine the next available integer ID
         if let maxId = garageVehicles.map({ $0.id }).max() {
-              self.nextId = maxId + 1
+            nextId = maxId + 1
         }
 
         // Load currentVehicleId from UserDefaults
-        self.currentVehicleId = UserDefaults.standard.integer(forKey: "currentCarId")
+        currentVehicleId = UserDefaults.standard.integer(forKey: "currentCarId")
         currentVehicle = getVehicle(id: currentVehicleId)
     }
 
@@ -142,16 +143,15 @@ public class Garage: ObservableObject {
                                    year: "2015",
                                    obdinfo: OBDInfo(vin: "1234567890",
                                                     supportedPIDs: [OBDCommand.mode6(.MONITOR_O2_B1S1), OBDCommand.mode1(.speed), OBDCommand.mode1(.rpm), OBDCommand.mode1(.maf), .mode1(.throttlePos), .mode1(.coolantTemp), .mode1(.fuelLevel), OBDCommand.mode1(.fuelType), OBDCommand.mode1(.shortFuelTrim1), OBDCommand.mode1(.O2Bank1Sensor3), OBDCommand.mode1(.runTime), OBDCommand.mode1(.intakePressure), OBDCommand.mode1(.intakeTemp), OBDCommand.mode1(.timingAdvance), OBDCommand.mode1(.engineLoad)],
-                                                        obdProtocol: .protocol6)
-        )
+                                                    obdProtocol: .protocol6))
 
         let mockVehicle2 = Vehicle(id: 1, make: "Mock-Toyota", model: "Camry", year: "2019", obdinfo: OBDInfo(obdProtocol: PROTOCOL.protocol6))
 
-        self.garageVehicles = [mockVehicle1, mockVehicle2]
+        garageVehicles = [mockVehicle1, mockVehicle2]
         currentVehicle = mockVehicle1
 
         if let maxId = garageVehicles.map({ $0.id }).max() {
-              self.nextId = maxId + 1
+            nextId = maxId + 1
         }
     }
 }

@@ -1,5 +1,5 @@
-import XCTest
 @testable import SwiftOBD2
+import XCTest
 
 final class SwiftOBD2Tests: XCTestCase {
     func testExample() throws {

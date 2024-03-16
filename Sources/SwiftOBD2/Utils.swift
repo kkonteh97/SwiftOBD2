@@ -21,7 +21,7 @@ func bytesToInt(_ byteArray: Data) -> Int {
 // enum RESPONSE {
 //
 //    enum ERROR: String {
-//        
+//
 //        case QUESTION_MARK = "?",
 //             ACT_ALERT = "ACT ALERT",
 //             BUFFER_FULL = "BUFFER FULL",
@@ -37,7 +37,7 @@ func bytesToInt(_ byteArray: Data) -> Int {
 //             RX_ERROR = "RX ERROR",
 //             STOPPED = "STOPPED",
 //             UNABLE_TO_CONNECT = "UNABLE TO CONNECT"
-//        
+//
 //        static let asArray: [ERROR] = [QUESTION_MARK, ACT_ALERT, BUFFER_FULL, BUS_BUSSY,
 //                                       BUS_ERROR, CAN_ERROR, DATA_ERROR, ERRxx, FB_ERROR,
 //                                       LP_ALERT, LV_RESET, NO_DATA, RX_ERROR,STOPPED,
@@ -47,19 +47,19 @@ func bytesToInt(_ byteArray: Data) -> Int {
 
 public enum PROTOCOL: String, Codable {
     case
-    protocol1 = "1",
-    protocol2 = "2",
-    protocol3 = "3",
-    protocol4 = "4",
-    protocol5 = "5",
-    protocol6 = "6",
-    protocol7 = "7",
-    protocol8 = "8",
-    protocol9 = "9",
-    protocolA = "A",
-    protocolB = "B",
-    protocolC = "C",
-    NONE = "NONE"
+        protocol1 = "1",
+        protocol2 = "2",
+        protocol3 = "3",
+        protocol4 = "4",
+        protocol5 = "5",
+        protocol6 = "6",
+        protocol7 = "7",
+        protocol8 = "8",
+        protocol9 = "9",
+        protocolA = "A",
+        protocolB = "B",
+        protocolC = "C",
+        NONE
 
     public var description: String {
         switch self {
@@ -145,24 +145,24 @@ public enum PROTOCOL: String, Codable {
 
         case .NONE:
             return ""
-
         }
     }
 
     public static let asArray: [PROTOCOL] = [
-                                      protocol1,
-                                      protocol2,
-                                      protocol3,
-                                      protocol4,
-                                      protocol5,
-                                      protocol6,
-                                      protocol7,
-                                      protocol8,
-                                      protocol9,
-                                      protocolA,
-                                      protocolB,
-                                      protocolC,
-                                      NONE]
+        protocol1,
+        protocol2,
+        protocol3,
+        protocol4,
+        protocol5,
+        protocol6,
+        protocol7,
+        protocol8,
+        protocol9,
+        protocolA,
+        protocolB,
+        protocolC,
+        NONE
+    ]
 }
 
 // enum GET_DTCS_STEP{
@@ -173,10 +173,10 @@ public enum PROTOCOL: String, Codable {
 //    send_03,
 //    finished,
 //    none
-//    
+//
 //    func next() -> GET_DTCS_STEP{
 //        switch (self) {
-//            
+//
 //        case .send_0101: return .send_03
 //        case .send_03: return .finished
 //        case .finished: return .none

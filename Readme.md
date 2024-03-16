@@ -1,16 +1,19 @@
-# SwiftOBD2
+![Header](./Sources/SwiftOBD2/Assets/github-header-image.png)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)  ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
+<p style="text-align: center;">[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)  ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)</p>
+
+------------
+
 
 SwiftOBD2 is a Swift package designed to simplify communication with vehicles using an ELM327 OBD2 adapter. It provides a straightforward and powerful interface for interacting with your vehicle's onboard diagnostics system, allowing you to retrieve real-time data and perform diagnostics. [Sample App](https://github.com/kkonteh97/SwiftOBD2App).
 
-## Requirements
+### Requirements
 
 - iOS 14.0+ / macOS 11.0+
 - Xcode 13.0+
 - Swift 5.0+
 
-## Key Features
+### Key Features
 
 * Connection Management:
     * Establishes connections to the OBD2 adapter via Bluetooth or Wi-Fi.
@@ -31,7 +34,7 @@ SwiftOBD2 is a Swift package designed to simplify communication with vehicles us
     * Allows for testing and development with a demo mode.
     
 
-## Roadmap
+### Roadmap
 
 - [x] Connect to an OBD2 adapter via Bluetooth Low Energy (BLE) 
 - [x] Retrieve error codes (DTCs) stored in the vehicle's OBD2 system
@@ -84,7 +87,6 @@ import Combine
     * Inside the ViewModel:
         * Define a @Published property measurements to store the collected data.
         * Initialize an OBDService instance, setting the desired connection type (e.g., Bluetooth, Wi-Fi).
-        * Set the ViewModel as the delegate of OBDService.
 
 3. Connection Handling
     * Implement the connectionStateChanged method from the OBDServiceDelegate protocol. Update the UI based on connection state changes (disconnected, connected, etc.) or handle any necessary logic.
@@ -106,10 +108,10 @@ import Combine
     
 ### Code Example
 ```Swift
-class ViewModel: OBDServiceDelegate, ObservableObject {
+class ViewModel: ObservableObject {
     @Published var measurements: [OBDCommand: MeasurementResult] = [:]
     @Published var connectionState: ConnectionState = .disconnected
-    
+
     var cancellables = Set<AnyCancellable>()
     var requestingPIDs: [OBDCommand] = [.mode1(.rpm)] {
         didSet {
@@ -117,23 +119,12 @@ class ViewModel: OBDServiceDelegate, ObservableObject {
         }
     }
     
-    let obdService = OBDService(connectionType: .bluetooth)
-
     init() {
-        obdService.delegate = self
+        obdService.$connectionState
+            .assign(to: &$connectionState)
     }
 
-    func connectionStateChanged(state: ConnectionState) {
-        connectionState = state
-        switch state {
-        case .disconnected:
-            print("Disconnected")
-        case .connectedToAdapter:
-            print("Connected to adapter")
-        case .connectedToVehicle:
-            print("Connected to vehicle!")
-        }
-    }
+    let obdService = OBDService(connectionType: .bluetooth)
 
     func startContinousUpdates() {
         obdService.startContinuousUpdates([.mode1(.rpm)]) // You can add more PIDs
@@ -212,11 +203,11 @@ struct ContentView: View {
 
 ```
 
-## Supported OBD2 Commands
+### Supported OBD2 Commands
 
 A comprehensive list of supported OBD2 commands will be available in the full documentation (coming soon).
 
-## Important Considerations
+### Important Considerations
 
 * Ensure you have a compatible ELM327 OBD2 adapter.
 * Permissions: If using Bluetooth, your app may need to request Bluetooth permissions from the user.
@@ -228,12 +219,15 @@ A comprehensive list of supported OBD2 commands will be available in the full do
 
 This project welcomes your contributions! Feel free to open issues for bug reports or feature requests. To contribute code:
 
-Fork the repository.
-Create your feature branch.
-Commit your changes with descriptive messages.
-Submit a pull request for review.
-License
+1. Fork the repository.
+2. Create your feature branch.
+3. Commit your changes with descriptive messages.
+4. Submit a pull request for review.
+
+## License
 
 The Swift OBD package is distributed under the MIT license. See the [LICENSE](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) file for more details.
 
-Give this package a ⭐️ if you find it useful!
+------------
+
+#####Give this package a ⭐️ if you find it useful!

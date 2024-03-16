@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  wifimanager.swift
 //
 //
 //  Created by kemo konteh on 2/26/24.
@@ -10,11 +10,10 @@ import Network
 
 protocol CommProtocol {
     func sendCommand(_ command: String) async throws -> [String]
-    func demoModeSwitch(_ isDemoMode: Bool)
     func disconnectPeripheral()
     func connectAsync() async throws
     var connectionStatePublisher: Published<ConnectionState>.Publisher { get }
-    var obdDelegate: OBDServiceDelegate? { get set}
+    var obdDelegate: OBDServiceDelegate? { get set }
 }
 
 enum CommunicationError: Error {
@@ -23,7 +22,7 @@ enum CommunicationError: Error {
 }
 
 class MOCKComm: CommProtocol {
-    var ecuSettings: MockECUSettings = MockECUSettings()
+    var ecuSettings: MockECUSettings = .init()
 
     func sendCommand(_ command: String) async throws -> [String] {
         if let command = MockResponse(rawValue: command) {
@@ -34,8 +33,7 @@ class MOCKComm: CommProtocol {
         }
     }
 
-    func demoModeSwitch(_ isDemoMode: Bool) {
-    }
+    func demoModeSwitch(_: Bool) {}
 
     func disconnectPeripheral() {
         connectionState = .disconnected
@@ -50,7 +48,6 @@ class MOCKComm: CommProtocol {
     @Published var connectionState: ConnectionState = .disconnected
     var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
     var obdDelegate: OBDServiceDelegate?
-
 }
 
 class WifiManager: CommProtocol {
@@ -62,11 +59,11 @@ class WifiManager: CommProtocol {
     var tcp: NWConnection?
 
     func connectAsync() async throws {
-        let host =  NWEndpoint.Host("192.168.0.10")
+        let host = NWEndpoint.Host("192.168.0.10")
         guard let port = NWEndpoint.Port("35000") else {
             throw CommunicationError.invalidData
         }
-        self.tcp = NWConnection(host: host, port: port, using: .tcp)
+        tcp = NWConnection(host: host, port: port, using: .tcp)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             tcp?.stateUpdateHandler = { newState in
                 switch newState {
@@ -74,9 +71,9 @@ class WifiManager: CommProtocol {
                     print("Connected")
                     self.connectionState = .connectedToAdapter
                     continuation.resume(returning: ())
-                case .waiting(let error):
+                case let .waiting(error):
                     print("Waiting \(error)")
-                case .failed(let error):
+                case let .failed(error):
                     print("Failed \(error)")
                     continuation.resume(throwing: CommunicationError.errorOccurred(error))
                 default:
@@ -94,7 +91,7 @@ class WifiManager: CommProtocol {
         print("Sending: \(command)")
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String], Error>) in
-            self.tcp?.send(content: data, completion: .contentProcessed({ error in
+            self.tcp?.send(content: data, completion: .contentProcessed { error in
                 if let error = error {
                     print("Error sending data \(error)")
                     continuation.resume(throwing: error)
@@ -115,7 +112,7 @@ class WifiManager: CommProtocol {
                         continuation.resume(returning: lines)
                     }
                 })
-            }))
+            })
         }
     }
 
@@ -123,7 +120,5 @@ class WifiManager: CommProtocol {
         tcp?.cancel()
     }
 
-    func demoModeSwitch(_ isDemoMode: Bool) {
-
-    }
+    func demoModeSwitch(_: Bool) {}
 }

@@ -1,15 +1,15 @@
-import Foundation
 import CoreBluetooth
+import Foundation
 
 class ServiceCharacteristicsMock {
-    private var value: Data = Data([UInt8(0x01)])
+    private var value: Data = .init([UInt8(0x01)])
 
-    private let serviceUuid1: CBUUID = CBUUID(string: "00112233-4455-6677-8899-AABBCCDDEEFF")
-    private let characteristicUuid1ForService1: CBUUID = CBUUID(string: "10112233-4455-6677-8899-AABBCCDDEEFF")
+    private let serviceUuid1: CBUUID = .init(string: "00112233-4455-6677-8899-AABBCCDDEEFF")
+    private let characteristicUuid1ForService1: CBUUID = .init(string: "10112233-4455-6677-8899-AABBCCDDEEFF")
     //    private let characteristicUuid2ForService1: CBUUID = CBUUID(string: "10112233-4455-6677-8899-AABBCCDDEEFF")
 
-    private let ecuServiceUuid: CBUUID = CBUUID(string: "FFE0")
-    private let ecuCharacteristicUuid: CBUUID = CBUUID(string: "FFE1")
+    private let ecuServiceUuid: CBUUID = .init(string: "FFE0")
+    private let ecuCharacteristicUuid: CBUUID = .init(string: "FFE1")
 
     public func service() -> [CBMutableService] {
         return [
@@ -54,7 +54,7 @@ class ServiceCharacteristicsMock {
 
     let header = "7E8"
 
-    public func writeValue(uuid: CBUUID, writeValue: Data, delegate: CBPeripheralProtocolDelegate, ecuSettings: inout MockECUSettings) {
+    public func writeValue(uuid: CBUUID, writeValue: Data, ecuSettings: inout MockECUSettings) {
         guard let dataString = String(data: writeValue, encoding: .utf8) else {
             print("Could not convert data to string")
             return
@@ -73,9 +73,7 @@ class ServiceCharacteristicsMock {
                     return
                 }
                 value = responseData
-            } else {
-
-            }
+            } else {}
         default:
             break
         }
@@ -126,7 +124,7 @@ enum MockResponse: String, CaseIterable {
         var echo = ""
 
         if ecuSettings.echo {
-            echo = self.rawValue + "\r\n"
+            echo = rawValue + "\r\n"
         }
 
         if ecuSettings.headerOn {
@@ -135,7 +133,7 @@ enum MockResponse: String, CaseIterable {
 
         switch self {
         case .ATZ: return "ELM327 v1.5\r\n\r\n>"
-        case .ATD, .ATL0, .ATAT1, .ATSP0, .ATSP6, .ATSH7E0:  return echo + "OK\r\n>"
+        case .ATD, .ATL0, .ATAT1, .ATSP0, .ATSP6, .ATSH7E0: return echo + "OK\r\n>"
         case .ATH1:
             ecuSettings.headerOn = true
             return echo + "OK\r\n>"
@@ -149,32 +147,34 @@ enum MockResponse: String, CaseIterable {
             ecuSettings.echo = false
             return echo + "OK\r\n>"
 
-        case .ATRV:  return "\(Double.random(in: 12.0...14.0))\r\n>"
+        case .ATRV: return "\(Double.random(in: 12.0 ... 14.0))\r\n>"
         case .ATDPN: return "06\r\n>"
-        case .O100:  return echo + header + "06 41 00 BE 3F A8 13 00\r\n\r\n>"
-        case .O120:  return echo + header + "06 41 20 90 07 E0 11 00\r\n\r\n>"
-        case .O140:  return echo + header + "06 41 40 FA DC 80 00 00\r\n\r\n>"
-        case .O600:  return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
-        case .O620:  return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
-        case .O640:  return echo + header + "06 46 40 C0 00 00 01 00\r\n\r\n>"
-        case .O660:  return echo + header + "06 46 60 00 00 00 01 00\r\n\r\n>"
-        case .O680:  return echo + header + "06 46 80 80 00 00 01 00\r\n\r\n>"
-        case .O6A0:  return echo + header + "06 46 A0 F8 00 00 00 00\r\n\r\n>"
-        case .O900:  return echo + header + "06 49 00 55 40 00 00 00\r\n\r\n>"
-        case .O902:  return echo + header + "10 14 49 02 01 31 4E 34 \r\n" + header + "21 41 4C 33 41 50 37 44 \r\n" + header + "22 43 31 39 39 35 38 33 \r\n\r\n>"
+        case .O100: return echo + header + "06 41 00 BE 3F A8 13 00\r\n\r\n>"
+        case .O120: return echo + header + "06 41 20 90 07 E0 11 00\r\n\r\n>"
+        case .O140: return echo + header + "06 41 40 FA DC 80 00 00\r\n\r\n>"
+        case .O600: return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
+        case .O620: return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
+        case .O640: return echo + header + "06 46 40 C0 00 00 01 00\r\n\r\n>"
+        case .O660: return echo + header + "06 46 60 00 00 00 01 00\r\n\r\n>"
+        case .O680: return echo + header + "06 46 80 80 00 00 01 00\r\n\r\n>"
+        case .O6A0: return echo + header + "06 46 A0 F8 00 00 00 00\r\n\r\n>"
+        case .O900: return echo + header + "06 49 00 55 40 00 00 00\r\n\r\n>"
+        case .O902: return echo + header + "10 14 49 02 01 31 4E 34 \r\n"
+            + header + "21 41 4C 33 41 50 37 44 \r\n" + header + "22 43 31 39 39 35 38 33 \r\n\r\n>"
         }
     }
 
     var action: CommandAction? {
-           switch self {
-           case .ATH1: return .setHeaderOn
-           case .ATH0: return .setHeaderOff
-           case .ATE0: return .echoOff
-           case .ATE1: return .echoOn
-           default: return nil
+        switch self {
+        case .ATH1: return .setHeaderOn
+        case .ATH0: return .setHeaderOff
+        case .ATE0: return .echoOff
+        case .ATE1: return .echoOn
+        default: return nil
         }
     }
 }
+
 extension OBDCommand {
     static func lookupCommand(forValue value: String) -> OBDCommand? {
         for command in General.allCases {
@@ -192,42 +192,3 @@ extension OBDCommand {
         return nil
     }
 }
-// switch dataString {
-//    case "ATZ\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "ELM327 v1.5\r\n>".data(using: .utf8)!
-//        value = response
-//    case "ATD\r", "ATL0\r", "ATE0\r", "ATH1\r", "ATAT1\r", "ATSP0\r", "ATSP6\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "OK\r\n>".data(using: .utf8)!
-//        value = response
-//    case "ATRV\r":
-//        // Send back ElM327 V1.5 as data
-//        let voltage = Double.random(in: 12.0...14.0)
-//        let response = "\(voltage)\r\n>".data(using: .utf8)!
-//        value = response
-//    case "ATDPN\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "06\r\n>".data(using: .utf8)!
-//        value = response
-//    case "0100\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "7E8 06 41 00 BE 3F A8 13 00\r\n>".data(using: .utf8)!
-//        value = response
-//    case "0120\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "7E8 06 41 20 12 34 56 78 00\r\n>".data(using: .utf8)!
-//        value = response
-//
-//    case "0140\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "7E8 06 41 40 12 34 56 78 00\r\n>".data(using: .utf8)!
-//        value = response
-//
-//    case "AT SH 7E0\r":
-//        // Send back ElM327 V1.5 as data
-//        let response = "OK\r\n>".data(using: .utf8)!
-//        value = response
-//    default:
-//        print("default")
-// }

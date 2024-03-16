@@ -1,5 +1,5 @@
 //
-//  ELM327Parser.swift
+//  parser.swift
 //  SmartOBD2
 //
 //  Created by kemo konteh on 9/19/23.
@@ -33,7 +33,7 @@ struct OBDParcer {
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
 
-        self.frames = obdLines.compactMap {
+        frames = obdLines.compactMap {
             if let frame = Frame(raw: $0, idBits: idBits) {
                 return frame
             } else {
@@ -44,8 +44,8 @@ struct OBDParcer {
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
 
-        self.messages = framesByECU.values.compactMap {
-             Message(frames: $0)
+        messages = framesByECU.values.compactMap {
+            Message(frames: $0)
         }
     }
 }
@@ -53,15 +53,15 @@ struct OBDParcer {
 public struct Message {
     var frames: [Frame]
     public var data: Data? {
-          switch frames.count {
-          case 1:
-              return parseSingleFrameMessage(frames)
-          case 2...:
-              return parseMultiFrameMessage(frames)
-          default:
-              return nil
-          }
-      }
+        switch frames.count {
+        case 1:
+            return parseSingleFrameMessage(frames)
+        case 2...:
+            return parseMultiFrameMessage(frames)
+        default:
+            return nil
+        }
+    }
 
     var ecu: ECUID? {
         return frames.first?.txID
@@ -77,15 +77,17 @@ public struct Message {
     private func parseSingleFrameMessage(_ frames: [Frame]) -> Data? {
         guard let frame = frames.first, frame.type == .singleFrame,
               let dataLen = frame.dataLen, dataLen > 0,
-              frame.data.count >= 2 + Int(dataLen)  else { // Pre-validate the length
+              frame.data.count >= 2 + Int(dataLen)
+        else { // Pre-validate the length
             return nil
         }
-        return frame.data.subdata(in: 2..<(2 + Int(dataLen))) // Using Substring
+        return frame.data.subdata(in: 2 ..< (2 + Int(dataLen))) // Using Substring
     }
 
     private func parseMultiFrameMessage(_ frames: [Frame]) -> Data? {
         guard let firstFrameValid = frames.first(where: { $0.type == .firstFrame }),
-              let assembledData = assembleData(firstFrame: firstFrameValid, consecutiveFrames: frames.filter { $0.type == .consecutiveFrame }) else {
+              let assembledData = assembleData(firstFrame: firstFrameValid, consecutiveFrames: frames.filter { $0.type == .consecutiveFrame })
+        else {
             return nil
         }
         return assembledData
@@ -102,13 +104,13 @@ public struct Message {
 
     private func extractDataFromFrame(_ frame: Frame, startIndex: Int) -> Data? {
         guard let frameDataLen = frame.dataLen else {
-           return nil
+            return nil
         }
         let endIndex = startIndex + Int(frameDataLen) - 1
         guard endIndex <= frame.data.count else {
             return frame.data[startIndex...]
         }
-        return frame.data[startIndex..<endIndex]
+        return frame.data[startIndex ..< endIndex]
     }
 }
 
@@ -132,7 +134,7 @@ struct Frame {
 
         let dataBytes = rawData.hexBytes
 
-        self.data = Data(dataBytes.dropFirst(4))
+        data = Data(dataBytes.dropFirst(4))
 
 //
 //        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
@@ -143,23 +145,24 @@ struct Frame {
 //        }
 
         guard let txID = ECUID(rawValue: dataBytes[3] & 0x07),
-              let type = FrameType(rawValue: data[0] & 0xF0) else {
-                    return nil
+              let type = FrameType(rawValue: data[0] & 0xF0)
+        else {
+            return nil
         }
 
-        self.priority = dataBytes[2] & 0x0F
-        self.addrMode = dataBytes[3] & 0xF0
-        self.rxID = dataBytes[2]
+        priority = dataBytes[2] & 0x0F
+        addrMode = dataBytes[3] & 0xF0
+        rxID = dataBytes[2]
         self.txID = txID
         self.type = type
 
         switch type {
-            case .singleFrame:
-                self.dataLen = (data[0] & 0x0F)
-            case .firstFrame:
-                self.dataLen = ((UInt8(data[0] & 0x0F) << 8) + UInt8(data[1]))
-            case .consecutiveFrame:
-                self.seqIndex = data[0] & 0x0F
+        case .singleFrame:
+            dataLen = (data[0] & 0x0F)
+        case .firstFrame:
+            dataLen = ((UInt8(data[0] & 0x0F) << 8) + UInt8(data[1]))
+        case .consecutiveFrame:
+            seqIndex = data[0] & 0x0F
         }
     }
 }

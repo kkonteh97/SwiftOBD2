@@ -1,15 +1,14 @@
 //
-//  ELM327Test.swift
+//  elm327Test.swift
 //  SMARTOBD2Tests
 //
 //  Created by kemo konteh on 1/31/24.
 //
 
-import XCTest
 @testable import SwiftOBD2
+import XCTest
 
 final class ELM327Test: XCTestCase {
-
     // System under test
     var sut: ELM327?
 
@@ -18,7 +17,6 @@ final class ELM327Test: XCTestCase {
         let comm = MOCKComm()
 
         sut = ELM327(comm: comm)
-
     }
 
     override func tearDownWithError() throws {

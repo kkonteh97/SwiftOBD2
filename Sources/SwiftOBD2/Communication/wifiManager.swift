@@ -11,7 +11,7 @@ import Network
 protocol CommProtocol {
     func sendCommand(_ command: String) async throws -> [String]
     func disconnectPeripheral()
-    func connectAsync() async throws
+    func connectAsync(timeout: TimeInterval) async throws
     var connectionStatePublisher: Published<ConnectionState>.Publisher { get }
     var obdDelegate: OBDServiceDelegate? { get set }
 }
@@ -29,7 +29,7 @@ class WifiManager: CommProtocol {
 
     var tcp: NWConnection?
 
-    func connectAsync() async throws {
+    func connectAsync(timeout: TimeInterval) async throws {
         let host = NWEndpoint.Host("192.168.0.10")
         guard let port = NWEndpoint.Port("35000") else {
             throw CommunicationError.invalidData

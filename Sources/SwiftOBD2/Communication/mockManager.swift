@@ -15,8 +15,8 @@ enum CommandAction {
 }
 
 struct MockECUSettings {
-    var headerOn = false
-    var echo = true
+    var headerOn = true
+    var echo = false
     var vinNumber = ""
 }
 
@@ -28,11 +28,141 @@ class MOCKComm: CommProtocol {
     var ecuSettings: MockECUSettings = .init()
 
     func sendCommand(_ command: String) async throws -> [String] {
-        if let command = MockResponse(rawValue: command) {
-            let response = command.response(ecuSettings: &ecuSettings)
-            return [response]
+        print("Sending command: \(command)")
+        var header = ""
+
+        let prefix = String(command.prefix(2))
+        if prefix == "01" || prefix == "06" || prefix == "09" {
+            var response: String = ""
+            if ecuSettings.headerOn {
+                header = "7E8"
+            }
+            for i in stride(from: 2, to: command.count, by: 2) {
+                let index = command.index(command.startIndex, offsetBy: i)
+                let nextIndex = command.index(command.startIndex, offsetBy: i + 2)
+                let subCommand = prefix + String(command[index..<nextIndex])
+                guard let value = OBDCommand.mockResponse(forCommand: subCommand) else {
+                    return ["No Data"]
+
+                }
+                response.append(value + " ")
+            }
+            guard var mode = Int(command.prefix(2)) else {
+                return [""]
+            }
+            mode = mode + 40
+
+            if response.count > 18 {
+                var chunks = response.chunked(by: 15)
+                print("chunks ", chunks)
+
+                var ff = chunks[0]
+
+                var Totallength = 0
+
+                let ffLength = ff.replacingOccurrences(of: " ", with: "").count / 2
+
+                Totallength += ffLength
+
+                var cf = Array(chunks.dropFirst())
+                Totallength += cf.joined().replacingOccurrences(of: " ", with: "").count
+
+                var lengthHex = String(format: "%02X", Totallength - 1)
+
+                if lengthHex.count % 2 != 0 {
+                    lengthHex = "0" + lengthHex
+                }
+
+                lengthHex = "10 " + lengthHex
+                ff = lengthHex + " " + String(mode) + " " + ff
+
+                var assembledFrame: [String] = [ff]
+                var cfCount = 33
+                for i in 0..<cf.count {
+                    let length = String(format: "%02X", cfCount)
+                    cfCount += 1
+                    cf[i] = length + " " + cf[i]
+                    assembledFrame.append(cf[i])
+                }
+
+                for i in 0..<assembledFrame.count {
+                    assembledFrame[i] = header + " " + assembledFrame[i]
+                    while assembledFrame[i].count < 28 {
+                        assembledFrame[i].append("00 ")
+                    }
+                }
+
+                if ecuSettings.echo {
+                    assembledFrame.insert(" \(command)", at: 0)
+                }
+                print("Assembled framas", assembledFrame)
+                return assembledFrame.map { String($0) }
+            } else {
+                let lengthHex = String(format: "%02X", response.count / 3)
+                response = header + " " + lengthHex + " "  + String(mode) + " " + response
+                while response.count < 28 {
+                    response.append("00 ")
+                }
+                print("response", response)
+                if ecuSettings.echo {
+                    response = " \(command)" + response
+                }
+                return [response]
+            }
+        } else  if command.hasPrefix("AT") {
+            let action = command.dropFirst(2)
+            var response = {
+                switch action {
+                case " SH 7E0":
+                    return ["OK"]
+                case "Z":
+                    return ["ELM327 v1.5"]
+                case "D":
+                    return ["OK"]
+                case "H1":
+                    ecuSettings.headerOn = true
+                    return ["OK"]
+                case "H0":
+                    ecuSettings.headerOn = false
+                    return ["OK"]
+                case "E1":
+                    ecuSettings.echo = true
+                    return ["OK"]
+                case "E0":
+                    ecuSettings.echo = false
+                    return ["OK"]
+                case "L0":
+                    return ["OK"]
+                case "AT1":
+                    return ["OK"]
+                case "SP0":
+                    return ["OK"]
+                case "SP6":
+                    return ["OK"]
+                case "DPN":
+                    return ["06"]
+                case "RV":
+                    return [String(Double.random(in: 12.0 ... 14.0))]
+                default:
+                    return ["NO DATA"]
+                }
+            }()
+            if ecuSettings.echo {
+                response .insert(command, at: 0)
+            }
+            print("res",response)
+            return response
+
         } else {
-            return ["NO DATA"]
+            guard var response = OBDCommand.mockResponse(forCommand: command) else {
+                return []
+            }
+            response = command + response  + "\r\n\r\n>"
+            var lines = response
+                    .components(separatedBy: .newlines)
+                    .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            lines.removeLast()
+            return lines
         }
     }
 
@@ -41,108 +171,88 @@ class MOCKComm: CommProtocol {
         obdDelegate?.connectionStateChanged(state: .disconnected)
     }
 
-    func connectAsync() async throws {
+    func connectAsync(timeout: TimeInterval) async throws {
         connectionState = .connectedToAdapter
         obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
     }
 }
 
-enum MockResponse: String, CaseIterable {
-    case ATZ = "ATZ\r"
-    case ATD = "ATD\r"
-    case ATL0 = "ATL0\r"
-    case ATE0 = "ATE0\r"
-    case ATE1 = "ATE1\r"
-    case ATH1 = "ATH1\r"
-    case ATH0 = "ATH0\r"
-    case ATAT1 = "ATAT1\r"
-    case ATRV = "ATRV\r"
-    case ATDPN = "ATDPN\r"
-    case ATSP0 = "ATSP0\r"
-    case ATSP6 = "ATSP6\r"
-    case O100 = "0100\r"
-    case O120 = "0120\r"
-    case O140 = "0140\r"
-    case O600 = "0600\r"
-    case O620 = "0620\r"
-    case O640 = "0640\r"
-    case O660 = "0660\r"
-    case O680 = "0680\r"
-    case O6A0 = "06A0\r"
-    case O900 = "0900\r"
-    case O902 = "0902\r"
-    case ATSH7E0 = "AT SH 7E0\r"
+extension OBDCommand {
+    static func mockResponse(forCommand command: String) -> String? {
 
-    func response(ecuSettings: inout MockECUSettings) -> String {
-        var header = ""
-        var echo = ""
-
-        if ecuSettings.echo {
-            echo = rawValue + "\r\n"
+        guard let obd2Command = self.from(command: command) else {
+            print("Invalid command", command, "\n")
+            return "Invalid command"
         }
 
-        if ecuSettings.headerOn {
-            header = "7E8 "
-        }
+        switch obd2Command {
+            case .mode1(let command):
+             switch command {
+                case .pidsA:
+                    return "00 BE 3F A8 13 00"
+                case .pidsB:
+                    return "20 90 07 E0 11 00"
+                case .pidsC:
+                    return "40 FA DC 80 00 00"
+                case .rpm:
+                    let desiredRPM = Int.random(in: 1000...3000)
+                    let decimalRep = desiredRPM * 4
 
-        switch self {
-        case .ATZ: return "ELM327 v1.5\r\n\r\n>"
-        case .ATD, .ATL0, .ATAT1, .ATSP0, .ATSP6, .ATSH7E0: return echo + "OK\r\n>"
-        case .ATH1:
-            ecuSettings.headerOn = true
-            return echo + "OK\r\n>"
-        case .ATH0:
-            ecuSettings.headerOn = false
-            return echo + "OK\r\n>"
-        case .ATE1:
-            ecuSettings.echo = true
-            return echo + "OK\r\n>"
-        case .ATE0:
-            ecuSettings.echo = false
-            return echo + "OK\r\n>"
+                    let A = decimalRep / 256
+                    let B = decimalRep % 256
 
-        case .ATRV: return "\(Double.random(in: 12.0 ... 14.0))\r\n>"
-        case .ATDPN: return "06\r\n>"
-        case .O100: return echo + header + "06 41 00 BE 3F A8 13 00\r\n\r\n>"
-        case .O120: return echo + header + "06 41 20 90 07 E0 11 00\r\n\r\n>"
-        case .O140: return echo + header + "06 41 40 FA DC 80 00 00\r\n\r\n>"
-        case .O600: return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
-        case .O620: return echo + header + "06 46 00 C0 00 00 01 00\r\n\r\n>"
-        case .O640: return echo + header + "06 46 40 C0 00 00 01 00\r\n\r\n>"
-        case .O660: return echo + header + "06 46 60 00 00 00 01 00\r\n\r\n>"
-        case .O680: return echo + header + "06 46 80 80 00 00 01 00\r\n\r\n>"
-        case .O6A0: return echo + header + "06 46 A0 F8 00 00 00 00\r\n\r\n>"
-        case .O900: return echo + header + "06 49 00 55 40 00 00 00\r\n\r\n>"
-        case .O902: return echo + header + "10 14 49 02 01 31 4E 34 \r\n"
-            + header + "21 41 4C 33 41 50 37 44 \r\n" + header + "22 43 31 39 39 35 38 33 \r\n\r\n>"
-        }
-    }
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
 
-    var action: CommandAction? {
-        switch self {
-        case .ATH1: return .setHeaderOn
-        case .ATH0: return .setHeaderOff
-        case .ATE0: return .echoOff
-        case .ATE1: return .echoOn
-        default: return nil
+                    return "0C" + " " + hexA + " " + hexB
+                case .speed:
+                    let hexSpeed = String(format: "%02X", Int.random(in: 0...100))
+                    return "0D" + " " + hexSpeed
+                case .coolantTemp:
+                  let temp = Int.random(in: 50...150) + 40
+                 let hexTemp = String(format: "%02X", temp)
+                 return "05" + " " + hexTemp
+                default:
+                    return nil
+            }
+        case .mode6(let command):
+            switch command {
+                case .MIDS_A:
+                    return "00 C0 00 00 01 00"
+                case .MIDS_B:
+                    return "02 C0 00 00 01 00"
+                case .MIDS_C:
+                    return "04 C0 00 00 01 00"
+                case .MIDS_D:
+                    return "06 C0 00 00 01 00"
+                case .MIDS_E:
+                    return "08 C0 00 00 01 00"
+                case .MIDS_F:
+                    return "0A C0 00 00 01 00"
+                default:
+                    return nil
+            }
+        case .mode9(let command):
+            switch command {
+            case .PIDS_9A:
+                    return "00 55 40 00 00 00"
+            case .VIN:
+                return "02 01 31 4E 34 41 4C 33 41 50 37 44 43 31 39 39 35 38 33"
+            default:
+                return nil
+            }
+        default:
+            print("none for:" + command)
+            return nil
         }
     }
 }
-
-extension OBDCommand {
-    static func lookupCommand(forValue value: String) -> OBDCommand? {
-        for command in General.allCases {
-            if command.properties.command == value {
-                return .general(command)
-            }
+//        case .O902: return  "10 14 49 02 01 31 4E 34 \r\n"
+//            + header + "21 41 4C 33 41 50 37 44 \r\n" + header + "22 43 31 39 39 35 38 33 \r\n\r\n>"
+extension String {
+    func chunked(by chunkSize: Int) -> Array<String> {
+        return stride(from: 0, to: self.count, by: chunkSize).map {
+            String(self[self.index(self.startIndex, offsetBy: $0)..<self.index(self.startIndex, offsetBy: min($0 + chunkSize, self.count))])
         }
-
-        for command in OBDCommand.Mode1.allCases {
-            if command.properties.command == value {
-                return .mode1(command)
-            }
-        }
-
-        return nil
     }
 }

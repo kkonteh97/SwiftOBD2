@@ -24,7 +24,7 @@ enum TxId: UInt8, Codable {
     case transmission = 0x01
 }
 
-struct OBDParcer {
+public struct OBDParcer {
     public let messages: [Message]
     let frames: [Frame]
 
@@ -79,6 +79,8 @@ public struct Message {
               let dataLen = frame.dataLen, dataLen > 0,
               frame.data.count >= 2 + Int(dataLen)
         else { // Pre-validate the length
+            print("Failed to parse single frame message")
+            print("frame: \(frames.first)")
             return nil
         }
         return frame.data.subdata(in: 2 ..< (2 + Int(dataLen))) // Using Substring
@@ -144,9 +146,12 @@ struct Frame {
 //                    return nil
 //        }
 
-        guard let txID = ECUID(rawValue: dataBytes[3] & 0x07),
-              let type = FrameType(rawValue: data[0] & 0xF0)
+        guard let txID = ECUID(rawValue: dataBytes[3] & 0x07), 
+                let dataType = data.first,
+              let type = FrameType(rawValue: dataType & 0xF0)
         else {
+            print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
+            print("invalid frame type")
             return nil
         }
 

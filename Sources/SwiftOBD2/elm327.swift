@@ -193,8 +193,8 @@ class ELM327 {
 
     // MARK: - Adapter Initialization
 
-    func connectToAdapter() async throws {
-        try await comm.connectAsync()
+    func connectToAdapter(timeout: TimeInterval) async throws {
+        try await comm.connectAsync(timeout: timeout)
     }
 
     /// Initializes the adapter by sending a series of commands.
@@ -238,8 +238,9 @@ class ELM327 {
         if response.contains("OK") {
             return response
         } else {
+            print("Invalid response: \(response)")
             logger.error("Invalid response: \(response)")
-            throw SetupError.invalidResponse(message: "message: \(message), \(response[0])")
+            throw SetupError.invalidResponse(message: "message: \(message), \(response.first)")
         }
     }
 
@@ -281,9 +282,10 @@ class ELM327 {
         guard let vinResponse = try? await sendCommand(command.properties.command) else {
             return nil
         }
-        let messages = OBDParcer(vinResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let data = messages?[0].data,
+
+        guard let messages = OBDParcer(vinResponse, idBits: obdProtocol.idBits)?.messages,
+              let data = messages.first?.data,
               var vinString = String(bytes: data, encoding: .utf8)
         else {
             return nil
@@ -311,7 +313,7 @@ extension ELM327 {
 
         // If there is only one message, assume it's from the engine
         if messages.count == 1 {
-            ecuMap[messages[0].ecu?.rawValue ?? 0] = .engine
+            ecuMap[messages.first?.ecu?.rawValue ?? 0] = .engine
             return ecuMap
         }
 
@@ -397,9 +399,8 @@ extension ELM327 {
     }
 
     private func parseResponse(_ response: [String]) throws -> Set<String> {
-        let messages = OBDParcer(response, idBits: obdProtocol.idBits)?.messages
-
-        guard let ecuData = messages?[0].data else {
+        guard let messages = OBDParcer(response, idBits: obdProtocol.idBits)?.messages,
+              let ecuData = messages.first?.data else {
             throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
         }
         let binaryData = BitArray(data: ecuData[1...]).binaryArray
@@ -424,6 +425,7 @@ struct BatchedResponse {
 
     init(response: Data) {
         self.response = response
+        print(response.compactMap { String(format: "%02X ", $0) }.joined())
     }
 
     mutating func extractValue(_ cmd: OBDCommand) -> MeasurementResult? {
@@ -431,7 +433,7 @@ struct BatchedResponse {
         let size = properties.bytes
         guard response.count >= size else { return nil }
         let valueData = response.prefix(size)
-        //        print("value ",value.compactMap { String(format: "%02X ", $0) }.joined())
+        print("value ", valueData.compactMap { String(format: "%02X ", $0) }.joined())
 
         response.removeFirst(size)
         //        print("Buffer: \(buffer.compactMap { String(format: "%02X ", $0) }.joined())")

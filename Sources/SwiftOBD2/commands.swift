@@ -212,6 +212,7 @@ public enum OBDCommand: Codable, Hashable, Comparable {
     case mode3(Mode3)
     case mode6(Mode6)
     case mode9(Mode9)
+    case protocols(Protocols)
 
     public var properties: CommandProperties {
         switch self {
@@ -224,6 +225,8 @@ public enum OBDCommand: Codable, Hashable, Comparable {
         case let .mode6(command):
             return command.properties
         case let .mode3(command):
+            return command.properties
+        case let .protocols(command):
             return command.properties
         }
     }
@@ -252,6 +255,18 @@ public enum OBDCommand: Codable, Hashable, Comparable {
             case .ATAT1: return CommandProperties("ATAT1", "Adaptive Timing On", 5, .none)
             case .ATSTFF: return CommandProperties("ATSTFF", "Set Time to Fast", 5, .none)
             case .ATDPN: return CommandProperties("ATDPN", "Describe Protocol Number", 5, .none)
+            }
+        }
+    }
+
+    public enum Protocols: CaseIterable, Codable, Comparable {
+        case ATSP0
+        case ATSP6
+        public var properties: CommandProperties {
+            switch self {
+            case .ATSP0: return CommandProperties("ATSP0", "Auto protocol", 0, .none)
+            case .ATSP6: return CommandProperties("ATSP6", "Auto protocol", 0, .none)
+
             }
         }
     }
@@ -723,6 +738,15 @@ public enum OBDCommand: Codable, Hashable, Comparable {
         for command in OBDCommand.Mode9.allCases {
             commands.append(.mode9(command))
         }
+        for command in OBDCommand.Protocols.allCases {
+            commands.append(.protocols(command))
+        }
         return commands
     }()
+}
+
+extension OBDCommand {
+    static public func from(command: String) -> OBDCommand? {
+        return OBDCommand.allCommands.first(where: { $0.properties.command == command })
+    }
 }

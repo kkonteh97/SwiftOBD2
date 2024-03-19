@@ -128,7 +128,7 @@ class BLEManager: NSObject, CommProtocol {
         obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
     }
 
-    func scanForPeripheralAsync(timeout: TimeInterval) async throws -> CBPeripheral? {
+    func scanForPeripheralAsync(_ timeout: TimeInterval) async throws -> CBPeripheral? {
         // returns a single peripheral with the specified services
         return try await Timeout(seconds: timeout) {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CBPeripheral, Error>) in
@@ -231,11 +231,11 @@ class BLEManager: NSObject, CommProtocol {
 
     // MARK: - Async Methods
 
-    func connectAsync() async throws {
+    func connectAsync(timeout: TimeInterval) async throws {
         if connectionState != .disconnected {
             return
         }
-        guard let peripheral = try await scanForPeripheralAsync(timeout: 10) else {
+        guard let peripheral = try await scanForPeripheralAsync(timeout) else {
             throw BLEManagerError.peripheralNotFound
         }
 

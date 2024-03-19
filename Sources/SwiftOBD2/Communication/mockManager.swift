@@ -113,12 +113,10 @@ class MOCKComm: CommProtocol {
             let action = command.dropFirst(2)
             var response = {
                 switch action {
-                case " SH 7E0":
+                case " SH 7E0", "D", "L0", "AT1", "SP0", "SP6", "STFF":
                     return ["OK"]
                 case "Z":
                     return ["ELM327 v1.5"]
-                case "D":
-                    return ["OK"]
                 case "H1":
                     ecuSettings.headerOn = true
                     return ["OK"]
@@ -130,14 +128,6 @@ class MOCKComm: CommProtocol {
                     return ["OK"]
                 case "E0":
                     ecuSettings.echo = false
-                    return ["OK"]
-                case "L0":
-                    return ["OK"]
-                case "AT1":
-                    return ["OK"]
-                case "SP0":
-                    return ["OK"]
-                case "SP6":
                     return ["OK"]
                 case "DPN":
                     return ["06"]
@@ -155,7 +145,7 @@ class MOCKComm: CommProtocol {
 
         } else {
             guard var response = OBDCommand.mockResponse(forCommand: command) else {
-                return []
+                return ["No Data"]
             }
             response = command + response  + "\r\n\r\n>"
             var lines = response
@@ -212,6 +202,24 @@ extension OBDCommand {
                   let temp = Int.random(in: 50...150) + 40
                  let hexTemp = String(format: "%02X", temp)
                  return "05" + " " + hexTemp
+                case .maf:
+                    let maf = Int.random(in: 0...655) * 100
+                 // (256A + B) / 100
+                    let A = maf / 256
+                    let B = maf % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+
+                    return "10" + " " + hexA + " " + hexB
+                case .engineLoad:
+                    let load = Int.random(in: 0...100)
+                    let hexLoad = String(format: "%02X", load)
+                    return "04" + " " + hexLoad
+                case .throttlePos:
+                    let pos = Int.random(in: 0...100)
+                    let hexPos = String(format: "%02X", pos)
+                    return "11" + " " + hexPos
                 default:
                     return nil
             }

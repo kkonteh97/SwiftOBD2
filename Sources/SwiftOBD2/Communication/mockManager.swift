@@ -1,6 +1,6 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by kemo konteh on 3/16/24.
 //
@@ -220,6 +220,62 @@ extension OBDCommand {
                     let pos = Int.random(in: 0...100)
                     let hexPos = String(format: "%02X", pos)
                     return "11" + " " + hexPos
+                case .fuelLevel:
+                    let level = Int.random(in: 0...100)
+                    let hexLevel = String(format: "%02X", level * 2.55)
+                    return "2F" + " " + hexLevel
+                case .fuelPressure:
+                    let pressure = Int.random(in: 0...765)
+                    let hexPressure = String(format: "%02X", pressure / 3)
+                    return "0A" + " " + hexPressure
+                case .intakeTemp:
+                    let temp = Int.random(in: 0...100) + 40
+                    let hexTemp = String(format: "%02X", temp)
+                    return "0F" + " " + hexTemp
+                case .timingAdvance:
+                    let advance = Int.random(in: 0...100)
+                    let hexAdvance = String(format: "%02X", advance / 2)
+                    return "0E" + " " + hexAdvance
+                case .intakePressure:
+                    let pressure = Int.random(in: 0...255)
+                    let hexPressure = String(format: "%02X", pressure)
+                    return "0B" + " " + hexPressure
+                case .barometricPressure:
+                    let pressure = Int.random(in: 0...255)
+                    let hexPressure = String(format: "%02X", pressure)
+                    return "33" + " " + hexPressure
+                case .fuelType:
+                    return "01 01"
+                case .fuelRailPressure:
+                    let pressure = Int.random(in: 0...65535)
+                    let hexPressure = String(format: "%04X", pressure)
+                    return "23" + " " + hexPressure
+                case .ethanolFuel:
+                    let fuel = Int.random(in: 0...100)
+                    let hexFuel = String(format: "%02X", fuel)
+                    return "52" + " " + hexFuel
+                case .engineOilTemp:
+                    let temp = Int.random(in: 0...100) + 40
+                    let hexTemp = String(format: "%02X", temp)
+                    return "5C" + " " + hexTemp
+                case .fuelInjectionTiming:
+                    let timing = Int.random(in: 0...65535)
+                    let hexTiming = String(format: "%04X", timing)
+                    return "5D" + " " + hexTiming
+                case .engineFuelRate:
+                    let rate = Int.random(in: 0...65535)
+                    let hexRate = String(format: "%04X", rate)
+                    return "5E" + " " + hexRate
+                case .emissionReq:
+                    return "01 01"
+                case .engineRunTime:
+                    let time = Int.random(in: 0...65535)
+                    let hexTime = String(format: "%04X", time)
+                    return "1F" + " " + hexTime
+                case .distanceTraveled:
+                    let distance = Int.random(in: 0...65535)
+                    let hexDistance = String(format: "%04X", distance)
+                    return "31" + " " + hexDistance
                 default:
                     return nil
             }

@@ -222,7 +222,7 @@ extension OBDCommand {
                     return "11" + " " + hexPos
                 case .fuelLevel:
                     let level = Int.random(in: 0...100)
-                    let hexLevel = String(format: "%02X", level * 2.55)
+                    let hexLevel = String(format: "%02X", Double(level) * 2.55)
                     return "2F" + " " + hexLevel
                 case .fuelPressure:
                     let pressure = Int.random(in: 0...765)
@@ -246,11 +246,11 @@ extension OBDCommand {
                     return "33" + " " + hexPressure
                 case .fuelType:
                     return "01 01"
-                case .fuelRailPressure:
+                case .fuelRailPressureDirect:
                     let pressure = Int.random(in: 0...65535)
                     let hexPressure = String(format: "%04X", pressure)
                     return "23" + " " + hexPressure
-                case .ethanolFuel:
+                case .ethanoPercent:
                     let fuel = Int.random(in: 0...100)
                     let hexFuel = String(format: "%02X", fuel)
                     return "52" + " " + hexFuel
@@ -262,17 +262,17 @@ extension OBDCommand {
                     let timing = Int.random(in: 0...65535)
                     let hexTiming = String(format: "%04X", timing)
                     return "5D" + " " + hexTiming
-                case .engineFuelRate:
+                case .fuelRate:
                     let rate = Int.random(in: 0...65535)
                     let hexRate = String(format: "%04X", rate)
                     return "5E" + " " + hexRate
-                case .emissionReq:
+                case .emissionsReq:
                     return "01 01"
-                case .engineRunTime:
+                case .runTime:
                     let time = Int.random(in: 0...65535)
                     let hexTime = String(format: "%04X", time)
                     return "1F" + " " + hexTime
-                case .distanceTraveled:
+                case .distanceSinceDTCCleared:
                     let distance = Int.random(in: 0...65535)
                     let hexDistance = String(format: "%04X", distance)
                     return "31" + " " + hexDistance

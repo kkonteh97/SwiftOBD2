@@ -143,6 +143,13 @@ class MOCKComm: CommProtocol {
             print("res",response)
             return response
 
+        } else if command == "03" {
+            // 03 is a request for DTCs
+            let dtc = ["P0301"]
+            // convert to hex
+            let hexDTC = dtc.map { $0.utf8.map { String(format: "%02X", $0) }.joined() }
+            let response = header + " 02 " + hexDTC.joined(separator: " ") + "00"
+            return [response]
         } else {
             guard var response = OBDCommand.mockResponse(forCommand: command) else {
                 return ["No Data"]

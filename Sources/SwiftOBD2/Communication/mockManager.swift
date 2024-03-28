@@ -145,10 +145,27 @@ class MOCKComm: CommProtocol {
 
         } else if command == "03" {
             // 03 is a request for DTCs
-            let dtc = ["P0301"]
+            let dtcs = ["P0104", "U0207"]
+            var response = ""
             // convert to hex
-            let hexDTC = dtc.map { $0.utf8.map { String(format: "%02X", $0) }.joined() }
-            let response = header + " 02 " + hexDTC.joined(separator: " ") + "00"
+            for dtc in dtcs {
+                var hexString = String(dtc.suffix(4))
+                // 2 by 2
+                hexString = hexString.chunked(by: 2).joined(separator: " ")
+                response +=  hexString
+                print("hexString", hexString)
+            }
+            if ecuSettings.headerOn {
+                header = "7E8"
+            }
+            let mode = "43"
+            response = mode + " " + response
+            let length = String(format: "%02X", response.count / 3 + 1)
+            response = header + " " + length + " " + response
+            while response.count < 28 {
+                response.append(" 00")
+            }
+            print("response", response)
             return [response]
         } else {
             guard var response = OBDCommand.mockResponse(forCommand: command) else {

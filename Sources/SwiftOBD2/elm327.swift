@@ -249,7 +249,7 @@ class ELM327 {
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         let statueMessages = OBDParcer(statusResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let statusData = statueMessages?[0].data,
+        guard let statusData = statueMessages?.first?.data,
               let decodedStatus = statusCommand.properties.decode(data: statusData)
         else {
             return nil
@@ -263,7 +263,7 @@ class ELM327 {
 
         let dtcMessages = OBDParcer(dtcResponse, idBits: obdProtocol.idBits)?.messages
 
-        guard let dtcData = dtcMessages?[0].data else {
+        guard let dtcData = dtcMessages?.first?.data else {
             return []
         }
         guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {

@@ -26,6 +26,12 @@ public enum ConnectionState {
 }
 
 class BLEManager: NSObject, CommProtocol {
+    static let services = [
+        CBUUID(string: "FFE0"),
+        CBUUID(string: "FFF0"),
+        CBUUID(string: "18F0"), //e.g. VGate iCar Pro
+    ]
+
     let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "BLEManager")
 
     static let RestoreIdentifierKey: String = "OBD2Adapter"
@@ -54,7 +60,7 @@ class BLEManager: NSObject, CommProtocol {
     override init() {
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: .main, options: [CBCentralManagerOptionShowPowerAlertKey: true,
-                                                                                      CBCentralManagerOptionRestoreIdentifierKey: BLEManager.RestoreIdentifierKey])
+                                                                                  CBCentralManagerOptionRestoreIdentifierKey: BLEManager.RestoreIdentifierKey])
     }
 
     // MARK: - Central Manager Control Methods
@@ -82,7 +88,7 @@ class BLEManager: NSObject, CommProtocol {
                 logger.debug("Bluetooth is On.")
             #endif
             guard let device = connectedPeripheral else {
-                startScanning([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
+                startScanning(Self.services)
                 return
             }
 
@@ -123,7 +129,7 @@ class BLEManager: NSObject, CommProtocol {
         logger.info("Connected to peripheral: \(peripheral.name ?? "Unnamed")")
         connectedPeripheral = peripheral
         connectedPeripheral?.delegate = self
-        connectedPeripheral?.discoverServices([CBUUID(string: "FFE0"), CBUUID(string: "FFF0")])
+        connectedPeripheral?.discoverServices(Self.services)
         connectionState = .connectedToAdapter
         obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
     }
@@ -140,7 +146,7 @@ class BLEManager: NSObject, CommProtocol {
                     }
                     self.foundPeripheralCompletion = nil
                 }
-                self.startScanning([CBUUID(string: "FFF0"), CBUUID(string: "FFE0")])
+                self.startScanning(Self.services)
             }
         }
     }
@@ -150,11 +156,14 @@ class BLEManager: NSObject, CommProtocol {
     func didDiscoverServices(_ peripheral: CBPeripheral, error _: Error?) {
         for service in peripheral.services ?? [] {
             print("Discovered service: \(service.uuid)")
-            if service.uuid == CBUUID(string: "FFE0") {
+            switch service {
+            case CBUUID(string: "FFE0"):
                 peripheral.discoverCharacteristics([CBUUID(string: "FFE1")], for: service)
-            } else if service.uuid == CBUUID(string: "FFF0") {
+            case CBUUID(string: "FFF0"):
                 peripheral.discoverCharacteristics([CBUUID(string: "FFF1"), CBUUID(string: "FFF2")], for: service)
-            } else {
+            case CBUUID(string: "18F0"):
+                peripheral.discoverCharacteristics([CBUUID(string: "2AF0"), CBUUID(string: "2AF1")], for: service)
+            default:
                 peripheral.discoverCharacteristics(nil, for: service)
             }
         }
@@ -169,13 +178,20 @@ class BLEManager: NSObject, CommProtocol {
             if characteristic.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: characteristic)
             }
-            if characteristic.uuid.uuidString == "FFE1" {
+            switch characteristic.uuid.uuidString {
+            case "FFE1": // for servcice FFE0
                 ecuWriteCharacteristic = characteristic
                 ecuReadCharacteristic = characteristic
-            } else if characteristic.uuid.uuidString == "FFF1" {
+            case "FFF1": // for servcice FFF0
                 ecuReadCharacteristic = characteristic
-            } else if characteristic.uuid.uuidString == "FFF2" {
+            case "FFF2": // for servcice FFF0
                 ecuWriteCharacteristic = characteristic
+            case "2AF0": // for servcice 18F0
+                ecuReadCharacteristic = characteristic
+            case "2AF1": // for servcice 18F0
+                ecuWriteCharacteristic = characteristic
+            default:
+                break
             }
         }
 

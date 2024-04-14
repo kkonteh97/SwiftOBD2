@@ -1,10 +1,10 @@
 import Combine
 import Foundation
 
-public enum connectionType {
-    case bluetooth
-    case wifi
-    case demo
+public enum ConnectionType: String, CaseIterable {
+    case bluetooth = "Bluetooth"
+    case wifi = "Wi-Fi"
+    case demo = "Demo"
 }
 
 public protocol OBDServiceDelegate: AnyObject {
@@ -20,6 +20,12 @@ public protocol OBDServiceDelegate: AnyObject {
 ///   - Managing the connection state.
 public class OBDService: ObservableObject, OBDServiceDelegate {
     @Published public  var connectionState: ConnectionState = .disconnected
+    @Published public  var connectionType: ConnectionType {
+        didSet {
+            self.switchConnectionType(connectionType)
+            UserDefaults.standard.set(connectionType.rawValue, forKey: "connectionType")
+        }
+    }
 
     /// The internal ELM327 object responsible for direct adapter interaction.
     private var elm327: ELM327
@@ -27,7 +33,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// Initializes the OBDService object.
     ///
     /// - Parameter connectionType: The desired connection type (default is Bluetooth).
-    public init(connectionType: connectionType = .bluetooth) {
+    public init(connectionType: ConnectionType = .bluetooth) {
         #if targetEnvironment(simulator)
             elm327 = ELM327(comm: MOCKComm())
         #else
@@ -40,6 +46,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             elm327 = ELM327(comm: MOCKComm())
         }
         #endif
+        self.connectionType = connectionType
         elm327.obdDelegate = self
     }
 
@@ -86,7 +93,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// Switches the active connection type (between Bluetooth and Wi-Fi).
     ///
     /// - Parameter connectionType: The new desired connection type.
-    public func switchConnectionType(_ connectionType: connectionType) {
+    public func switchConnectionType(_ connectionType: ConnectionType) {
         switch connectionType {
         case .bluetooth:
             elm327 = ELM327(comm: BLEManager())
@@ -95,6 +102,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         case .demo:
             elm327 = ELM327(comm: MOCKComm())
         }
+        elm327.obdDelegate = self
     }
 
     // MARK: - Request Handling
@@ -158,12 +166,6 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         }
 
         return results
-//        var results: [OBDCommand: MeasurementResult] = [:]
-//        for command in commands {
-//            let result = batchedResponse.extractValue(command)
-//            results[command] = result
-//        }
-//        return results
     }
 
     /// Sends an OBD2 command to the vehicle and returns the raw response.
@@ -225,6 +227,10 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         elm327.switchToDemoMode(isDemoMode)
     }
 
+    /// Sends a raw command to the vehicle and returns the raw response.
+    /// - Parameter message: The raw command to send.
+    /// - Returns: The raw response from the vehicle.
+    /// - Throws: Errors that might occur during the request process.
     public func sendCommand(_ message: String, withTimeoutSecs _: TimeInterval = 5) async throws -> [String] {
         do {
             return try await elm327.sendCommand(message)

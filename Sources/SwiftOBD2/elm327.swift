@@ -373,7 +373,9 @@ extension ELM327 {
 
         for pidGetter in pidGetters {
             do {
+//                logger.info("Getting supported PIDs for \(pidGetter.properties.command)")
                 let response = try await sendCommand(pidGetter.properties.command)
+//                logger.info("Response: \(response)")
                 // find first instance of 41 plus command sent, from there we determine the position of everything else
                 // Ex.
                 //        || ||
@@ -403,7 +405,7 @@ extension ELM327 {
               let ecuData = messages.first?.data else {
             throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
         }
-        let binaryData = BitArray(data: ecuData[1...]).binaryArray
+        let binaryData = BitArray(data: ecuData.dropFirst()).binaryArray
         return extractSupportedPIDs(binaryData)
     }
 

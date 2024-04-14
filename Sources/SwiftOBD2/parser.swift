@@ -75,15 +75,16 @@ public struct Message {
     }
 
     private func parseSingleFrameMessage(_ frames: [Frame]) -> Data? {
+        
         guard let frame = frames.first, frame.type == .singleFrame,
               let dataLen = frame.dataLen, dataLen > 0,
-              frame.data.count >= 2 + Int(dataLen)
+                frame.data.count == dataLen + 1
         else { // Pre-validate the length
             print("Failed to parse single frame message")
             print("frame: \(frames.first)")
             return nil
         }
-        return frame.data.subdata(in: 2 ..< (2 + Int(dataLen))) // Using Substring
+        return frame.data.dropFirst(2)
     }
 
     private func parseMultiFrameMessage(_ frames: [Frame]) -> Data? {

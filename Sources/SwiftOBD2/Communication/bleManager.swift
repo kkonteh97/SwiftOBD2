@@ -155,7 +155,7 @@ class BLEManager: NSObject, CommProtocol {
 
     func didDiscoverServices(_ peripheral: CBPeripheral, error _: Error?) {
         for service in peripheral.services ?? [] {
-            print("Discovered service: \(service.uuid)")
+            logger.info("Discovered service: \(service.uuid.uuidString)")
             switch service {
             case CBUUID(string: "FFE0"):
                 peripheral.discoverCharacteristics([CBUUID(string: "FFE1")], for: service)

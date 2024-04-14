@@ -228,7 +228,6 @@ extension OBDCommand {
                  return "05" + " " + hexTemp
                 case .maf:
                     let maf = Int.random(in: 0...655) * 100
-                 // (256A + B) / 100
                     let A = maf / 256
                     let B = maf % 256
 

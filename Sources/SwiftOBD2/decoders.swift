@@ -11,7 +11,7 @@ public enum MeasurementUnits: String, Codable {
     case metric = "Metric"
     case imperial = "Imperial"
 
-    static var allCases: [MeasurementUnits] {
+    public static var allCases: [MeasurementUnits] {
         [.metric, .imperial]
     }
 }

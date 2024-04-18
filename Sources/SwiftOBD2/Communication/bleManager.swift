@@ -325,9 +325,9 @@ class BLEManager: NSObject, CommProtocol {
 
             // remove the last line
             lines.removeLast()
-//            #if DEBUG
-//                logger.debug("Response: \(lines)")
-//            #endif
+            #if DEBUG
+                logger.debug("Response: \(lines)")
+            #endif
 
             if sendMessageCompletion != nil {
                 if lines[0].uppercased().contains("NO DATA") {

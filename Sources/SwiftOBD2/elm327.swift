@@ -240,7 +240,7 @@ class ELM327 {
         } else {
             print("Invalid response: \(response)")
             logger.error("Invalid response: \(response)")
-            throw SetupError.invalidResponse(message: "message: \(message), \(response.first)")
+            throw SetupError.invalidResponse(message: "message: \(message), \(String(describing: response.first))")
         }
     }
 

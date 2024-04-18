@@ -532,7 +532,7 @@ func decodeStatus(_ data: Data, isMetric _: MeasurementUnits = .metric) -> Statu
     //   [# DTC] X        [supprt] [~ready]
 
     // convert to binaryarray
-    let bits = BitArray(data: data[1...])
+    let bits = BitArray(data: data.dropFirst())
 
     var output = Status()
     output.MIL = bits.binaryArray[0] == 1

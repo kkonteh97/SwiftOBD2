@@ -75,7 +75,7 @@ public struct Message {
     }
 
     private func parseSingleFrameMessage(_ frames: [Frame]) -> Data? {
-        
+
         guard let frame = frames.first, frame.type == .singleFrame,
               let dataLen = frame.dataLen, dataLen > 0,
                 frame.data.count >= dataLen + 1
@@ -147,11 +147,10 @@ struct Frame {
 //                    return nil
 //        }
 
-        guard let txID = ECUID(rawValue: dataBytes[3] & 0x07), 
-                let dataType = data.first,
+        guard let dataType = data.first,
               let type = FrameType(rawValue: dataType & 0xF0)
         else {
-            print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
+            print(dataBytes.compactMap { String(format: "%02X", $0) })
             print("invalid frame type")
             return nil
         }
@@ -159,7 +158,7 @@ struct Frame {
         priority = dataBytes[2] & 0x0F
         addrMode = dataBytes[3] & 0xF0
         rxID = dataBytes[2]
-        self.txID = txID
+        self.txID = ECUID(rawValue: dataBytes[3] & 0x07) ?? .unknown
         self.type = type
 
         switch type {

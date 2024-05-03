@@ -283,6 +283,8 @@ class BLEManager: NSObject, CommProtocol {
             throw BLEManagerError.sendingMessagesInProgress
         }
 
+        logger.info("Sending command: \(command)")
+
         guard let connectedPeripheral = connectedPeripheral,
               let characteristic = ecuWriteCharacteristic,
               let data = "\(command)\r".data(using: .ascii)

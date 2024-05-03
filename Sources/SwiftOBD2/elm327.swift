@@ -376,7 +376,7 @@ extension ELM327 {
 
         for pidGetter in pidGetters {
             do {
-//                logger.info("Getting supported PIDs for \(pidGetter.properties.command)")
+                logger.info("Getting supported PIDs for \(pidGetter.properties.command)")
                 let response = try await sendCommand(pidGetter.properties.command)
 //                logger.info("Response: \(response)")
                 // find first instance of 41 plus command sent, from there we determine the position of everything else
@@ -430,7 +430,6 @@ struct BatchedResponse {
 
     init(response: Data) {
         self.response = response
-        print(response.compactMap { String(format: "%02X ", $0) }.joined())
     }
 
     mutating func extractValue(_ cmd: OBDCommand) -> MeasurementResult? {
@@ -438,7 +437,6 @@ struct BatchedResponse {
         let size = properties.bytes
         guard response.count >= size else { return nil }
         let valueData = response.prefix(size)
-        print("value ", valueData.compactMap { String(format: "%02X ", $0) }.joined())
 
         response.removeFirst(size)
         //        print("Buffer: \(buffer.compactMap { String(format: "%02X ", $0) }.joined())")

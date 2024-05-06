@@ -88,7 +88,7 @@ class ELM327 {
 
         let vin = await requestVin()
 
-        try await setHeader(header: ECUHeader.ENGINE)
+        // try await setHeader(header: ECUHeader.ENGINE)
 
         let supportedPIDs = await getSupportedPIDs()
 

@@ -142,7 +142,12 @@ class BLEManager: NSObject, CommProtocol {
                     if let peripheral = peripheral {
                         continuation.resume(returning: peripheral)
                     } else if let error = error {
-                        continuation.resume(throwing: error)
+                        if let bleError = error as? BLEManagerError {
+                            // Handle the BLEManagerError cases
+                            continuation.resume(returning: [bleError.description])
+                        } else {
+                            continuation.resume(throwing: error)
+                        }
                     }
                     self.foundPeripheralCompletion = nil
                 }
@@ -260,7 +265,12 @@ class BLEManager: NSObject, CommProtocol {
                 if let _ = peripheral {
                     continuation.resume()
                 } else if let error = error {
-                    continuation.resume(throwing: error)
+                    if let bleError = error as? BLEManagerError {
+                        // Handle the BLEManagerError cases
+                        continuation.resume(returning: [bleError.description])
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
             connect(to: peripheral)

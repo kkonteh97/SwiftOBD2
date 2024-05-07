@@ -299,12 +299,7 @@ class BLEManager: NSObject, CommProtocol {
                     if let response = response {
                         continuation.resume(returning: response)
                     } else if let error = error {
-                        if let bleError = error as? BLEManagerError {
-                            // Handle the BLEManagerError cases
-                            continuation.resume(returning: [bleError.description])
-                        } else {
-                            continuation.resume(throwing: error)
-                        }
+                        continuation.resume(throwing: error)
                     }
                     self.sendMessageCompletion = nil
                 }

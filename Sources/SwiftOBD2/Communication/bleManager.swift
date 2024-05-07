@@ -144,7 +144,7 @@ class BLEManager: NSObject, CommProtocol {
                     } else if let error = error {
                         if let bleError = error as? BLEManagerError {
                             // Handle the BLEManagerError cases
-                            continuation.resume(returning: [bleError.description])
+                            continuation.resume(throwing: bleError)
                         } else {
                             continuation.resume(throwing: error)
                         }
@@ -267,7 +267,7 @@ class BLEManager: NSObject, CommProtocol {
                 } else if let error = error {
                     if let bleError = error as? BLEManagerError {
                         // Handle the BLEManagerError cases
-                        continuation.resume(returning: [bleError.description])
+                        continuation.resume(throwing: bleError)
                     } else {
                         continuation.resume(throwing: error)
                     }
@@ -311,7 +311,7 @@ class BLEManager: NSObject, CommProtocol {
                     } else if let error = error {
                         if let bleError = error as? BLEManagerError {
                             // Handle the BLEManagerError cases
-                            continuation.resume(returning: [bleError.description])
+                            continuation.resume(throwing: bleError)
                         } else {
                             continuation.resume(throwing: error)
                         }

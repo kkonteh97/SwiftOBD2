@@ -245,7 +245,7 @@ public struct MeasurementResult: Equatable {
     public let unit: Unit
 }
 
-enum OBDServiceError: Error {
+public enum OBDServiceError: Error {
     case noAdapterFound
     case notConnectedToVehicle
     case adapterConnectionFailed(underlyingError: Error)

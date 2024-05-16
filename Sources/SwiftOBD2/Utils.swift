@@ -164,3 +164,49 @@ public enum PROTOCOL: String, Codable {
         NONE
     ]
 }
+
+public struct CANParcer {
+    public let messages: [Message]
+    let frames: [Frame]
+
+    public init?(_ lines: [String], idBits: Int) {
+        let obdLines = lines
+            .compactMap { $0.replacingOccurrences(of: " ", with: "") }
+            .filter { $0.isHex }
+
+        frames = obdLines.compactMap {
+            if let frame = Frame(raw: $0, idBits: idBits) {
+                return frame
+            } else {
+                print("Failed to create Frame for raw data: \($0)")
+                return nil
+            }
+        }
+
+        let framesByECU = Dictionary(grouping: frames) { $0.txID }
+
+        messages = framesByECU.values.compactMap {
+            Message(frames: $0)
+        }
+    }
+}
+
+protocol CANProtocol {
+    func parcer(_ lines: [String]) -> Data?
+    var elmID: String { get }
+    var name: String { get }
+}
+
+// dictionary of all the protocols
+let protocols: [PROTOCOL: CANProtocol] = [
+    .protocol1: ISO_15765_4_11bit_500k(),
+    .protocol2: ISO_15765_4_29bit_500k(),
+    .protocol3: ISO_9141_2(),
+    .protocol4: ISO_15765_4_29bit_250k(),
+    .protocol5: ISO_15765_4_11bit_500k(),
+    .protocol6: ISO_15765_4_11bit_500k(),
+    .protocol7: ISO_15765_4_29bit_500k(),
+    .protocol8: ISO_15765_4_11bit_250K(),
+    .protocol9: ISO_15765_4_29bit_250k(),
+    .protocolA: SAE_J1939(),
+]

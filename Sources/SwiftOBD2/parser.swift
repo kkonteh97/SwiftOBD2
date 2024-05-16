@@ -24,32 +24,6 @@ enum TxId: UInt8, Codable {
     case transmission = 0x01
 }
 
-public struct OBDParcer {
-    public let messages: [Message]
-    let frames: [Frame]
-
-    public init?(_ lines: [String], idBits: Int) {
-        let obdLines = lines
-            .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
-
-        frames = obdLines.compactMap {
-            if let frame = Frame(raw: $0, idBits: idBits) {
-                return frame
-            } else {
-                print("Failed to create Frame for raw data: \($0)")
-                return nil
-            }
-        }
-
-        let framesByECU = Dictionary(grouping: frames) { $0.txID }
-
-        messages = framesByECU.values.compactMap {
-            Message(frames: $0)
-        }
-    }
-}
-
 public struct Message {
     var frames: [Frame]
     public var data: Data? {

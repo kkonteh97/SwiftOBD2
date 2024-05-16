@@ -130,12 +130,64 @@ public struct LegacyMessage {
             print("frame: \(String(describing: frames.first))")
             return nil
         }
-        return frame.data.dropFirst()
+        let mode = frame.data.first
+        if mode == 0x43 {
+            var data = Data([0x43, 0x00])
+
+            for frame in frames {
+                data.append(frame.data.dropFirst())
+            }
+
+            return data.dropLast()
+        } else {
+            return frame.data.dropFirst().dropLast()
+        }
     }
 
     private func parseMultiFrameMessage(_ frames: [LegacyFrame]) -> Data? {
-        print("Parsing multi-frame message")
-        return nil
+        let mode = frames.first?.data.first
+
+        if mode == 0x43 {
+            var data = Data([0x43, 0x00])
+
+            for frame in frames {
+                data.append(frame.data.dropFirst())
+            }
+
+            return data
+        } else {
+            ///  generic multiline requests carry an order byte
+
+            ///  Ex.
+            ///           [      Frame       ]
+            ///  48 6B 10 49 02 01 00 00 00 31 ck
+            ///  48 6B 10 49 02 02 44 34 47 50 ck
+            ///  48 6B 10 49 02 03 30 30 52 35 ck
+            ///  etc...         [] [  Data   ]
+
+            ///  becomes:
+            ///  49 02 [] 00 00 00 31 44 34 47 50 30 30 52 35
+            ///       |  [         ] [         ] [         ]
+            ///   order byte is removed
+
+            //  sort the frames by the order byte
+            let sortedFrames = frames.sorted { $0.data[2] < $1.data[2] }
+
+            // check contiguity
+            guard sortedFrames.first?.data[2] == 1 else {
+                print("Invalid order byte")
+                return nil
+            }
+
+            // now that they're in order, accumulate the data from each frame
+            var data = Data()
+            for frame in sortedFrames {
+                // pop off the only the order byte
+                data.append(frame.data.dropFirst(3))
+            }
+
+            return data
+        }
     }
 
     private func assembleData(firstFrame: LegacyFrame, consecutiveFrames: [LegacyFrame]) -> Data? {

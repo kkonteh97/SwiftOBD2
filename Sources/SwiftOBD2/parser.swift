@@ -24,7 +24,7 @@ enum TxId: UInt8, Codable {
     case transmission = 0x01
 }
 
-public struct Message {
+public struct Message: MessageProtocol {
     var frames: [Frame]
     public var data: Data? {
         switch frames.count {

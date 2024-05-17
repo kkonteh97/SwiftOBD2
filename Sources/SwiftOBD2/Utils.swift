@@ -192,7 +192,7 @@ public struct CANParcer {
 }
 
 protocol CANProtocol {
-    func parcer(_ lines: [String]) -> Data?
+    func parcer(_ lines: [String]) -> [MessageProtocol]
     var elmID: String { get }
     var name: String { get }
 }

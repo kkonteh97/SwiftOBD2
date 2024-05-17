@@ -156,7 +156,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Throws: Errors that might occur during the request process.
     public func requestPIDs(_ commands: [OBDCommand]) async throws -> [OBDCommand: MeasurementResult] {
         let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
-        guard let responseData = elm327.canProtocol?.parcer(response) else { return [:] }
+        guard let responseData = elm327.canProtocol?.parcer(response).first?.data else { return [:] }
         var batchedResponse = BatchedResponse(response: responseData)
         let results: [OBDCommand: MeasurementResult] = commands.reduce(into: [:]) { result, command in
             let measurement = batchedResponse.extractValue(command)
@@ -173,7 +173,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func sendCommand(_ command: OBDCommand) async throws -> DecodeResult? {
         do {
             let response = try await sendCommand(command.properties.command)
-            guard let responseData = elm327.canProtocol?.parcer(response) else { return nil }
+            guard let responseData = elm327.canProtocol?.parcer(response).first?.data else { return nil }
             return command.properties.decode(data: responseData.dropFirst())
         } catch {
             throw OBDServiceError.commandFailed(command: command.properties.command, error: error)

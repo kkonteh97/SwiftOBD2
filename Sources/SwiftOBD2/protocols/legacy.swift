@@ -50,12 +50,8 @@ struct LegacyFrame {
     var raw: String
     var data = Data()
     var priority: UInt8
-//    var addrMode: UInt8
     var rxID: UInt8
     var txID: UInt8
-//    var type: FrameType
-//    var seqIndex: UInt8 = 0 // Only used when type = CF
-//    var dataLen: UInt8?
 
     init?(raw: String) {
         self.raw = raw
@@ -63,43 +59,26 @@ struct LegacyFrame {
 
         let dataBytes = rawData.hexBytes
 
-        data = Data(dataBytes.dropFirst(3))
+        data = Data(dataBytes.dropFirst(3).dropLast())
+        guard dataBytes.count >= 6, dataBytes.count <= 12 else {
+            print("invalid frame size")
 
-//        print("data: \(data.compactMap { String(format: "%02X", $0) })")
-//        print("dataBytes: \(dataBytes.compactMap { String(format: "%02X", $0) })")
-
-//
-//        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
-//                print(dataBytes.count)
-//                    print("invalid frame size")
-//                    print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
-//                    return nil
-//        }
-
-//        guard let dataType = data.first,
-//              let type = FrameType(rawValue: dataType & 0xF0)
-//        else {
-//            print(dataBytes.compactMap { String(format: "%02X", $0) })
-//            print("invalid frame type")
-//            return nil
-//        }
+            print(dataBytes.count)
+            print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
+            return nil
+        }
 
         priority = dataBytes[0]
         rxID = dataBytes[1]
         self.txID = dataBytes[2]
-
-//        switch type {
-//        case .singleFrame:
-//            dataLen = (data[0] & 0x0F)
-//        case .firstFrame:
-//            dataLen = ((UInt8(data[0] & 0x0F) << 8) + UInt8(data[1]))
-//        case .consecutiveFrame:
-//            seqIndex = data[0] & 0x0F
-//        }
     }
 }
 
-public struct LegacyMessage {
+public protocol MessageProtocol {
+    var data: Data? { get }
+}
+
+public struct LegacyMessage: MessageProtocol {
     var frames: [LegacyFrame]
     public var data: Data? {
         switch frames.count {
@@ -127,10 +106,11 @@ public struct LegacyMessage {
 
         guard let frame = frames.first else { // Pre-validate the length
             print("Failed to parse single frame message")
-            print("frame: \(String(describing: frames.first))")
             return nil
         }
+
         let mode = frame.data.first
+
         if mode == 0x43 {
             var data = Data([0x43, 0x00])
 
@@ -138,9 +118,9 @@ public struct LegacyMessage {
                 data.append(frame.data.dropFirst())
             }
 
-            return data.dropLast()
+            return data
         } else {
-            return frame.data.dropFirst().dropLast()
+            return frame.data.dropFirst()
         }
     }
 
@@ -207,47 +187,47 @@ public struct LegacyMessage {
 class SAE_J1850_PWM: CANProtocol {
     let elmID = "1"
     let name = "SAE J1850 PWM"
-    func parcer(_ lines: [String]) -> Data? {
+    func parcer(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
-            return nil
+            return []
         }
 
-        return messages.first?.data
+        return messages
     }
 }
 
 class SAE_J1850_VPW: CANProtocol {
     let elmID = "2"
     let name = "SAE J1850 VPW"
-    func parcer(_ lines: [String]) -> Data? {
+    func parcer(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
-            return nil
+            return []
         }
 
-        return messages.first?.data
+        return messages
     }
 }
 
 class ISO_9141_2: CANProtocol {
     let elmID = "3"
     let name = "ISO 9141-2"
-    func parcer(_ lines: [String]) -> Data? {
+    func parcer(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
-            return nil
+            return []
         }
 
-        return messages.first?.data
+        return messages
     }
 }
 
 class ISO_14230_4_KWP_5Baud: CANProtocol {
     let elmID = "4"
     let name = "ISO 14230-4 KWP (5 baud init)"
-    func parcer(_ lines: [String]) -> Data? {
+    func parcer(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
-            return nil
+            return []
         }
-        return messages.first?.data
+        return messages
     }
 }
 
@@ -256,9 +236,9 @@ public class ISO_14230_4_KWP_Fast: CANProtocol {
     let name = "ISO 14230-4 KWP (fast init)"
     public init() {}
 
-    public func parcer(_ lines: [String]) -> Data? {
+    public func parcer(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
-            return nil
+            return []
         }
 
         for message in messages {
@@ -267,6 +247,6 @@ public class ISO_14230_4_KWP_Fast: CANProtocol {
         }
 
 
-        return messages.first?.data
+        return messages
     }
 }

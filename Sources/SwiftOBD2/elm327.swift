@@ -250,7 +250,7 @@ class ELM327 {
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         logger.debug("Status response: \(statusResponse)")
-        guard let statusData = canProtocol?.parcer(statusResponse),
+        guard let statusData = canProtocol?.parcer(statusResponse).first?.data,
               let decodedStatus = statusCommand.properties.decode(data: statusData)
         else {
             return nil
@@ -263,7 +263,7 @@ class ELM327 {
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
-        guard let dtcData = canProtocol?.parcer(dtcResponse) else {
+        guard let dtcData = canProtocol?.parcer(dtcResponse).first?.data else {
             return []
         }
         guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
@@ -284,7 +284,7 @@ class ELM327 {
         }
 
 
-        guard let data = canProtocol?.parcer(vinResponse),
+        guard let data = canProtocol?.parcer(vinResponse).first?.data,
               var vinString = String(bytes: data, encoding: .utf8)
         else {
             return nil
@@ -399,7 +399,7 @@ extension ELM327 {
     }
 
     private func parseResponse(_ response: [String]) throws -> Set<String> {
-        guard let ecuData = canProtocol?.parcer(response) else {
+        guard let ecuData = canProtocol?.parcer(response).first?.data else {
             throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
         }
         let binaryData = BitArray(data: ecuData.dropFirst()).binaryArray

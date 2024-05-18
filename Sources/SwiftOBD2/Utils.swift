@@ -165,32 +165,6 @@ public enum PROTOCOL: String, Codable {
     ]
 }
 
-public struct CANParcer {
-    public let messages: [Message]
-    let frames: [Frame]
-
-    public init?(_ lines: [String], idBits: Int) {
-        let obdLines = lines
-            .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
-
-        frames = obdLines.compactMap {
-            if let frame = Frame(raw: $0, idBits: idBits) {
-                return frame
-            } else {
-                print("Failed to create Frame for raw data: \($0)")
-                return nil
-            }
-        }
-
-        let framesByECU = Dictionary(grouping: frames) { $0.txID }
-
-        messages = framesByECU.values.compactMap {
-            Message(frames: $0)
-        }
-    }
-}
-
 protocol CANProtocol {
     func parcer(_ lines: [String]) -> [MessageProtocol]
     var elmID: String { get }

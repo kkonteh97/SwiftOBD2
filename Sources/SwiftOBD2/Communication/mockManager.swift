@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 enum CommandAction {
     case setHeaderOn
@@ -21,6 +22,8 @@ struct MockECUSettings {
 }
 
 class MOCKComm: CommProtocol {
+    let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "MOCKComm")
+
     @Published var connectionState: ConnectionState = .disconnected
     var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
     var obdDelegate: OBDServiceDelegate?
@@ -28,7 +31,7 @@ class MOCKComm: CommProtocol {
     var ecuSettings: MockECUSettings = .init()
 
     func sendCommand(_ command: String) async throws -> [String] {
-        print("Sending command: \(command)")
+        logger.info("Sending command: \(command)")
         var header = ""
 
         let prefix = String(command.prefix(2))
@@ -54,7 +57,6 @@ class MOCKComm: CommProtocol {
 
             if response.count > 18 {
                 var chunks = response.chunked(by: 15)
-                print("chunks ", chunks)
 
                 var ff = chunks[0]
 
@@ -95,7 +97,6 @@ class MOCKComm: CommProtocol {
                 if ecuSettings.echo {
                     assembledFrame.insert(" \(command)", at: 0)
                 }
-                print("Assembled framas", assembledFrame)
                 return assembledFrame.map { String($0) }
             } else {
                 let lengthHex = String(format: "%02X", response.count / 3)
@@ -103,7 +104,6 @@ class MOCKComm: CommProtocol {
                 while response.count < 28 {
                     response.append("00 ")
                 }
-                print("response", response)
                 if ecuSettings.echo {
                     response = " \(command)" + response
                 }
@@ -140,7 +140,6 @@ class MOCKComm: CommProtocol {
             if ecuSettings.echo {
                 response .insert(command, at: 0)
             }
-            print("res",response)
             return response
 
         } else if command == "03" {
@@ -165,7 +164,6 @@ class MOCKComm: CommProtocol {
             while response.count < 28 {
                 response.append(" 00")
             }
-            print("response", response)
             return [response]
         } else {
             guard var response = OBDCommand.mockResponse(forCommand: command) else {
@@ -204,6 +202,8 @@ extension OBDCommand {
              switch command {
                 case .pidsA:
                     return "00 BE 3F A8 13 00"
+                case .status:
+                    return "01 12 34 56 78 00"
                 case .pidsB:
                     return "20 90 07 E0 11 00"
                 case .pidsC:

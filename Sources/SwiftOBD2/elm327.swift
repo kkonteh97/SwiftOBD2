@@ -258,18 +258,29 @@ class ELM327 {
         return decodedStatus.statusResult
     }
 
-    func scanForTroubleCodes() async throws -> [TroubleCode] {
+    func scanForTroubleCodes() async throws -> [ECUID:[TroubleCode]] {
+        var dtcs: [ECUID:[TroubleCode]]  = [:]
         logger.info("Scanning for trouble codes")
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
-        guard let dtcData = canProtocol?.parcer(dtcResponse).first?.data else {
-            return []
+        guard let messages = canProtocol?.parcer(dtcResponse) else {
+            return [:]
         }
-        guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
-            return []
+        for message in messages {
+            guard let dtcData = message.data else {
+                continue
+            }
+            guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
+                continue
+            }
+
+            let ecuId = message.ecu
+
+            dtcs[ecuId] = decodedDtc.troubleCode
         }
-        return decodedDtc.troubleCode ?? []
+
+        return dtcs
     }
 
     func clearTroubleCodes() async throws {

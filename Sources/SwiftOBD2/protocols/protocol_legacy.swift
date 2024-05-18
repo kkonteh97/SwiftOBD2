@@ -6,14 +6,17 @@
 //
 
 import Foundation
+import OSLog
+
+let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "parcer")
 
 struct FramesByECU {
-  let txID: UInt8
+  let txID: ECUID
     var frames: [LegacyFrame]
 }
 
 public struct LegacyParcer {
-    public let messages: [LegacyMessage]
+    let messages: [LegacyMessage]
     let frames: [LegacyFrame]
 
     public init?(_ lines: [String]) {
@@ -25,60 +28,19 @@ public struct LegacyParcer {
             if let frame = LegacyFrame(raw: $0) {
                 return frame
             } else {
-                print("Failed to create Frame for raw data: \($0)")
+                logger.error("Failed to create Frame for raw data: \($0)")
                 return nil
             }
         }
 
-        let framesByECU: [FramesByECU] = frames.reduce(into: []) { result, frame in
-          if let existingIndex = result.firstIndex(where: { $0.txID == frame.txID }) {
-            result[existingIndex].frames.append(frame)
-          } else {
-            result.append(FramesByECU(txID: frame.txID, frames: [frame]))
-          }
-        }
-
-//        print("framesByECU: \(framesByECU.first?.frames.first?.data.compactMap { String(format: "%02X", $0) })")
-
-        messages = framesByECU.compactMap {
-            LegacyMessage(frames: $0.frames)
+        let framesByECU = Dictionary(grouping: frames) { $0.txID }
+        messages = framesByECU.values.compactMap {
+            LegacyMessage(frames: $0)
         }
     }
 }
 
-struct LegacyFrame {
-    var raw: String
-    var data = Data()
-    var priority: UInt8
-    var rxID: UInt8
-    var txID: UInt8
-
-    init?(raw: String) {
-        self.raw = raw
-        var rawData = raw
-
-        let dataBytes = rawData.hexBytes
-
-        data = Data(dataBytes.dropFirst(3).dropLast())
-        guard dataBytes.count >= 6, dataBytes.count <= 12 else {
-            print("invalid frame size")
-
-            print(dataBytes.count)
-            print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
-            return nil
-        }
-
-        priority = dataBytes[0]
-        rxID = dataBytes[1]
-        self.txID = dataBytes[2]
-    }
-}
-
-public protocol MessageProtocol {
-    var data: Data? { get }
-}
-
-public struct LegacyMessage: MessageProtocol {
+struct LegacyMessage: MessageProtocol {
     var frames: [LegacyFrame]
     public var data: Data? {
         switch frames.count {
@@ -91,8 +53,8 @@ public struct LegacyMessage: MessageProtocol {
         }
     }
 
-    var ecu: UInt8? {
-        return frames.first?.txID
+    public var ecu: ECUID {
+        return frames.first?.txID ?? .unknown
     }
 
     init?(frames: [LegacyFrame]) {
@@ -182,6 +144,37 @@ public struct LegacyMessage: MessageProtocol {
     private func extractDataFromFrame(_ frame: LegacyFrame, startIndex: Int) -> Data? {
         return nil
     }
+}
+
+
+struct LegacyFrame {
+    var raw: String
+    var data = Data()
+    var priority: UInt8
+    var rxID: UInt8
+    var txID: ECUID
+
+    init?(raw: String) {
+        self.raw = raw
+        var rawData = raw
+
+        let dataBytes = rawData.hexBytes
+
+        data = Data(dataBytes.dropFirst(3).dropLast())
+        guard dataBytes.count >= 6, dataBytes.count <= 12 else {
+            print("invalid frame size", dataBytes.count, dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
+            return nil
+        }
+
+        priority = dataBytes[0]
+        rxID = dataBytes[1]
+        self.txID = ECUID(rawValue: dataBytes[2] & 0x07) ?? .unknown
+    }
+}
+
+public protocol MessageProtocol {
+    var data: Data? { get }
+    var ecu: ECUID { get }
 }
 
 class SAE_J1850_PWM: CANProtocol {

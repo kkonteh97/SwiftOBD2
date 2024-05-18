@@ -7,7 +7,11 @@
 
 import Foundation
 
-public struct TroubleCode: Codable, Hashable {
+public struct TroubleCode: Codable, Hashable, Comparable {
+    public static func < (lhs: TroubleCode, rhs: TroubleCode) -> Bool {
+        return lhs.code < rhs.code
+    }
+
     public let code: String
     public let description: String
 }

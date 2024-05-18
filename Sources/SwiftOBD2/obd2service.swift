@@ -70,7 +70,6 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             let obdInfo = try await initializeVehicle(preferedProtocol)
             return obdInfo
         } catch {
-            print("Error: \(error)")
             throw OBDServiceError.adapterConnectionFailed(underlyingError: error) // Propagate
         }
     }
@@ -157,8 +156,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Throws: Errors that might occur during the request process.
     public func requestPIDs(_ commands: [OBDCommand]) async throws -> [OBDCommand: MeasurementResult] {
         let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
-        let messages = OBDParcer(response, idBits: elm327.obdProtocol.idBits)?.messages
-        guard let responseData = messages?.first?.data else { return [:] }
+        guard let responseData = elm327.canProtocol?.parcer(response).first?.data else { return [:] }
         var batchedResponse = BatchedResponse(response: responseData)
         let results: [OBDCommand: MeasurementResult] = commands.reduce(into: [:]) { result, command in
             let measurement = batchedResponse.extractValue(command)
@@ -175,8 +173,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func sendCommand(_ command: OBDCommand) async throws -> DecodeResult? {
         do {
             let response = try await sendCommand(command.properties.command)
-            let messages = OBDParcer(response, idBits: elm327.obdProtocol.idBits)?.messages
-            guard let responseData = messages?.first?.data else { return nil }
+            guard let responseData = elm327.canProtocol?.parcer(response).first?.data else { return nil }
             return command.properties.decode(data: responseData.dropFirst())
         } catch {
             throw OBDServiceError.commandFailed(command: command.properties.command, error: error)
@@ -193,7 +190,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///  Scans for trouble codes and returns the result.
     ///  - Returns: The trouble codes found on the vehicle.
     ///  - Throws: Errors that might occur during the request process.
-    public func scanForTroubleCodes() async throws -> [TroubleCode] {
+    public func scanForTroubleCodes() async throws -> [ECUID:[TroubleCode]] {
         do {
             return try await elm327.scanForTroubleCodes()
         } catch {
@@ -223,9 +220,9 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         }
     }
 
-    public func switchToDemoMode(_ isDemoMode: Bool) {
-        elm327.switchToDemoMode(isDemoMode)
-    }
+//    public func switchToDemoMode(_ isDemoMode: Bool) {
+//        elm327.switchToDemoMode(isDemoMode)
+//    }
 
     /// Sends a raw command to the vehicle and returns the raw response.
     /// - Parameter message: The raw command to send.

@@ -24,7 +24,7 @@ enum TxId: UInt8, Codable {
     case transmission = 0x01
 }
 
-public struct OBDParcer {
+public struct CANParcer {
     public let messages: [Message]
     let frames: [Frame]
 
@@ -50,7 +50,7 @@ public struct OBDParcer {
     }
 }
 
-public struct Message {
+public struct Message: MessageProtocol {
     var frames: [Frame]
     public var data: Data? {
         switch frames.count {
@@ -63,8 +63,8 @@ public struct Message {
         }
     }
 
-    var ecu: ECUID? {
-        return frames.first?.txID
+    public var ecu: ECUID {
+        return frames.first?.txID ?? .unknown
     }
 
     init?(frames: [Frame]) {

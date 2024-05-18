@@ -7,6 +7,7 @@
 
 import Foundation
 import Network
+import OSLog
 
 protocol CommProtocol {
     func sendCommand(_ command: String) async throws -> [String]
@@ -22,6 +23,8 @@ enum CommunicationError: Error {
 }
 
 class WifiManager: CommProtocol {
+    let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "wifiManager")
+
     var obdDelegate: OBDServiceDelegate?
 
     @Published var connectionState: ConnectionState = .disconnected
@@ -59,7 +62,7 @@ class WifiManager: CommProtocol {
         guard let data = "\(command)\r".data(using: .ascii) else {
             throw CommunicationError.invalidData
         }
-        print("Sending: \(command)")
+        logger.info("Sending: \(command)")
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String], Error>) in
             self.tcp?.send(content: data, completion: .contentProcessed { error in

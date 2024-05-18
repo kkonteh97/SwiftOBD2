@@ -18,16 +18,13 @@ import Foundation
 import OSLog
 
 class ELM327 {
-    // MARK: - Properties
+    private var obdProtocol: PROTOCOL = .NONE
+    var canProtocol: CANProtocol?
 
-    private let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "ELM327")
-    var connectionState: ConnectionState = .disconnected {
-        didSet {
-            obdDelegate?.connectionStateChanged(state: connectionState)
-        }
-    }
-
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.com", category: "ELM327")
     private var comm: CommProtocol
+
+    private var cancellables = Set<AnyCancellable>()
 
     weak var obdDelegate: OBDServiceDelegate? {
         didSet {
@@ -35,8 +32,11 @@ class ELM327 {
         }
     }
 
-    var obdProtocol: PROTOCOL = .NONE
-    private var cancellables = Set<AnyCancellable>()
+    var connectionState: ConnectionState = .disconnected {
+        didSet {
+            obdDelegate?.connectionStateChanged(state: connectionState)
+        }
+    }
 
     init(comm: CommProtocol) {
         self.comm = comm
@@ -47,9 +47,9 @@ class ELM327 {
             .store(in: &cancellables)
     }
 
-    func switchToDemoMode(_ isDemoMode: Bool) {
-        stopConnection()
-    }
+//    func switchToDemoMode(_ isDemoMode: Bool) {
+//        stopConnection()
+//    }
 
     // MARK: - Adapter and Vehicle Setup
 
@@ -85,6 +85,7 @@ class ELM327 {
         }
 
         self.obdProtocol = obdProtocol
+        self.canProtocol = protocols[obdProtocol]
 
         let vin = await requestVin()
 
@@ -92,14 +93,14 @@ class ELM327 {
 
         let supportedPIDs = await getSupportedPIDs()
 
-        guard let messages = OBDParcer(r100, idBits: obdProtocol.idBits)?.messages else {
+        guard let messages = canProtocol?.parcer(r100) else {
             throw SetupError.invalidResponse(message: "Invalid response to 0100")
         }
 
-        let ecuMap = populateECUMap(messages)
+//        let ecuMap = populateECUMap(messages)
 
         connectionState = .connectedToVehicle
-        return OBDInfo(vin: vin, supportedPIDs: supportedPIDs, obdProtocol: obdProtocol, ecuMap: ecuMap)
+        return OBDInfo(vin: vin, supportedPIDs: supportedPIDs, obdProtocol: obdProtocol, ecuMap: nil)
     }
 
     /// Establishes a connection to the vehicle's ECU.
@@ -249,9 +250,7 @@ class ELM327 {
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         logger.debug("Status response: \(statusResponse)")
-        let statueMessages = OBDParcer(statusResponse, idBits: obdProtocol.idBits)?.messages
-
-        guard let statusData = statueMessages?.first?.data,
+        guard let statusData = canProtocol?.parcer(statusResponse).first?.data,
               let decodedStatus = statusCommand.properties.decode(data: statusData)
         else {
             return nil
@@ -259,20 +258,29 @@ class ELM327 {
         return decodedStatus.statusResult
     }
 
-    func scanForTroubleCodes() async throws -> [TroubleCode] {
+    func scanForTroubleCodes() async throws -> [ECUID:[TroubleCode]] {
+        var dtcs: [ECUID:[TroubleCode]]  = [:]
         logger.info("Scanning for trouble codes")
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
-        let dtcMessages = OBDParcer(dtcResponse, idBits: obdProtocol.idBits)?.messages
+        guard let messages = canProtocol?.parcer(dtcResponse) else {
+            return [:]
+        }
+        for message in messages {
+            guard let dtcData = message.data else {
+                continue
+            }
+            guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
+                continue
+            }
 
-        guard let dtcData = dtcMessages?.first?.data else {
-            return []
+            let ecuId = message.ecu
+
+            dtcs[ecuId] = decodedDtc.troubleCode
         }
-        guard let decodedDtc = dtcCommand.properties.decode(data: dtcData) else {
-            return []
-        }
-        return decodedDtc.troubleCode ?? []
+
+        return dtcs
     }
 
     func clearTroubleCodes() async throws {
@@ -287,8 +295,7 @@ class ELM327 {
         }
 
 
-        guard let messages = OBDParcer(vinResponse, idBits: obdProtocol.idBits)?.messages,
-              let data = messages.first?.data,
+        guard let data = canProtocol?.parcer(vinResponse).first?.data,
               var vinString = String(bytes: data, encoding: .utf8)
         else {
             return nil
@@ -303,69 +310,69 @@ class ELM327 {
     }
 }
 
-extension ELM327 {
-    private func populateECUMap(_ messages: [Message]) -> [UInt8: ECUID]? {
-        let engineTXID = 0
-        let transmissionTXID = 1
-        var ecuMap: [UInt8: ECUID] = [:]
-
-        // If there are no messages, return an empty map
-        guard !messages.isEmpty else {
-            return nil
-        }
-
-        // If there is only one message, assume it's from the engine
-        if messages.count == 1 {
-            ecuMap[messages.first?.ecu?.rawValue ?? 0] = .engine
-            return ecuMap
-        }
-
-        // Find the engine and transmission ECU based on TXID
-        var foundEngine = false
-
-        for message in messages {
-            guard let txID = message.ecu?.rawValue else {
-                logger.error("parse_frame failed to extract TX_ID")
-                continue
-            }
-
-            if txID == engineTXID {
-                ecuMap[txID] = .engine
-                foundEngine = true
-            } else if txID == transmissionTXID {
-                ecuMap[txID] = .transmission
-            }
-        }
-
-        // If engine ECU is not found, choose the one with the most bits
-        if !foundEngine {
-            var bestBits = 0
-            var bestTXID: UInt8?
-
-            for message in messages {
-                guard let bits = message.data?.bitCount() else {
-                    logger.error("parse_frame failed to extract data")
-                    continue
-                }
-                if bits > bestBits {
-                    bestBits = bits
-                    bestTXID = message.ecu?.rawValue
-                }
-            }
-
-            if let bestTXID = bestTXID {
-                ecuMap[bestTXID] = .engine
-            }
-        }
-
-        // Assign transmission ECU to messages without an ECU assignment
-        for message in messages where ecuMap[message.ecu?.rawValue ?? 0] == nil {
-            ecuMap[message.ecu?.rawValue ?? 0] = .transmission
-        }
-
-        return ecuMap
-    }
-}
+//extension ELM327 {
+//    private func populateECUMap(_ messages: [Message]) -> [UInt8: ECUID]? {
+//        let engineTXID = 0
+//        let transmissionTXID = 1
+//        var ecuMap: [UInt8: ECUID] = [:]
+//
+//        // If there are no messages, return an empty map
+//        guard !messages.isEmpty else {
+//            return nil
+//        }
+//
+//        // If there is only one message, assume it's from the engine
+//        if messages.count == 1 {
+//            ecuMap[messages.first?.ecu?.rawValue ?? 0] = .engine
+//            return ecuMap
+//        }
+//
+//        // Find the engine and transmission ECU based on TXID
+//        var foundEngine = false
+//
+//        for message in messages {
+//            guard let txID = message.ecu?.rawValue else {
+//                logger.error("parse_frame failed to extract TX_ID")
+//                continue
+//            }
+//
+//            if txID == engineTXID {
+//                ecuMap[txID] = .engine
+//                foundEngine = true
+//            } else if txID == transmissionTXID {
+//                ecuMap[txID] = .transmission
+//            }
+//        }
+//
+//        // If engine ECU is not found, choose the one with the most bits
+//        if !foundEngine {
+//            var bestBits = 0
+//            var bestTXID: UInt8?
+//
+//            for message in messages {
+//                guard let bits = message.data?.bitCount() else {
+//                    logger.error("parse_frame failed to extract data")
+//                    continue
+//                }
+//                if bits > bestBits {
+//                    bestBits = bits
+//                    bestTXID = message.ecu?.rawValue
+//                }
+//            }
+//
+//            if let bestTXID = bestTXID {
+//                ecuMap[bestTXID] = .engine
+//            }
+//        }
+//
+//        // Assign transmission ECU to messages without an ECU assignment
+//        for message in messages where ecuMap[message.ecu?.rawValue ?? 0] == nil {
+//            ecuMap[message.ecu?.rawValue ?? 0] = .transmission
+//        }
+//
+//        return ecuMap
+//    }
+//}
 
 extension ELM327 {
     /// Get the supported PIDs
@@ -378,7 +385,6 @@ extension ELM327 {
             do {
                 logger.info("Getting supported PIDs for \(pidGetter.properties.command)")
                 let response = try await sendCommand(pidGetter.properties.command)
-//                logger.info("Response: \(response)")
                 // find first instance of 41 plus command sent, from there we determine the position of everything else
                 // Ex.
                 //        || ||
@@ -404,15 +410,14 @@ extension ELM327 {
     }
 
     private func parseResponse(_ response: [String]) throws -> Set<String> {
-        guard let messages = OBDParcer(response, idBits: obdProtocol.idBits)?.messages,
-              let ecuData = messages.first?.data else {
+        guard let ecuData = canProtocol?.parcer(response).first?.data else {
             throw NSError(domain: "Invalid data format", code: 0, userInfo: nil)
         }
         let binaryData = BitArray(data: ecuData.dropFirst()).binaryArray
         return extractSupportedPIDs(binaryData)
     }
 
-    private func extractSupportedPIDs(_ binaryData: [Int]) -> Set<String> {
+    func extractSupportedPIDs(_ binaryData: [Int]) -> Set<String> {
         var supportedPIDs: Set<String> = []
 
         for (index, value) in binaryData.enumerated() {

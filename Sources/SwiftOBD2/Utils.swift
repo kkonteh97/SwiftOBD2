@@ -164,3 +164,23 @@ public enum PROTOCOL: String, Codable {
         NONE
     ]
 }
+
+protocol CANProtocol {
+    func parcer(_ lines: [String]) -> [MessageProtocol]
+    var elmID: String { get }
+    var name: String { get }
+}
+
+// dictionary of all the protocols
+let protocols: [PROTOCOL: CANProtocol] = [
+    .protocol1: ISO_15765_4_11bit_500k(),
+    .protocol2: ISO_15765_4_29bit_500k(),
+    .protocol3: ISO_9141_2(),
+    .protocol4: ISO_15765_4_29bit_250k(),
+    .protocol5: ISO_15765_4_11bit_500k(),
+    .protocol6: ISO_15765_4_11bit_500k(),
+    .protocol7: ISO_15765_4_29bit_500k(),
+    .protocol8: ISO_15765_4_11bit_250K(),
+    .protocol9: ISO_15765_4_29bit_250k(),
+    .protocolA: SAE_J1939(),
+]

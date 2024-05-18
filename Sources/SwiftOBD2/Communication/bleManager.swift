@@ -32,7 +32,7 @@ class BLEManager: NSObject, CommProtocol {
         CBUUID(string: "18F0"), //e.g. VGate iCar Pro
     ]
 
-    let logger = Logger(subsystem: "com.kemo.SmartOBD2", category: "BLEManager")
+    let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "BLEManager")
 
     static let RestoreIdentifierKey: String = "OBD2Adapter"
 

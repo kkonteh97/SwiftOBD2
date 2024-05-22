@@ -167,11 +167,11 @@ public enum PROTOCOL: String, Codable {
 
 // dictionary of all the protocols
 let protocols: [PROTOCOL: CANProtocol] = [
-    .protocol1: ISO_15765_4_11bit_500k(),
-    .protocol2: ISO_15765_4_29bit_500k(),
+    .protocol1: SAE_J1850_PWM(),
+    .protocol2: SAE_J1850_VPW(),
     .protocol3: ISO_9141_2(),
-    .protocol4: ISO_15765_4_29bit_250k(),
-    .protocol5: ISO_15765_4_11bit_500k(),
+    .protocol4: ISO_14230_4_KWP_5Baud(),
+    .protocol5: ISO_14230_4_KWP_Fast(),
     .protocol6: ISO_15765_4_11bit_500k(),
     .protocol7: ISO_15765_4_29bit_500k(),
     .protocol8: ISO_15765_4_11bit_250K(),

@@ -13,7 +13,7 @@ public struct TroubleCode: Codable, Hashable, Comparable {
     }
 
     public let code: String
-    public let description: String
+    public var description: String
 }
 
 let codes: [String: String] = [

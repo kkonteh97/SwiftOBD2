@@ -180,7 +180,7 @@ public protocol MessageProtocol {
 class SAE_J1850_PWM: CANProtocol {
     let elmID = "1"
     let name = "SAE J1850 PWM"
-    func parcer(_ lines: [String]) -> [MessageProtocol] {
+    func parce(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
             return []
         }
@@ -192,7 +192,7 @@ class SAE_J1850_PWM: CANProtocol {
 class SAE_J1850_VPW: CANProtocol {
     let elmID = "2"
     let name = "SAE J1850 VPW"
-    func parcer(_ lines: [String]) -> [MessageProtocol] {
+    func parce(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
             return []
         }
@@ -204,7 +204,7 @@ class SAE_J1850_VPW: CANProtocol {
 class ISO_9141_2: CANProtocol {
     let elmID = "3"
     let name = "ISO 9141-2"
-    func parcer(_ lines: [String]) -> [MessageProtocol] {
+    func parce(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
             return []
         }
@@ -216,7 +216,7 @@ class ISO_9141_2: CANProtocol {
 class ISO_14230_4_KWP_5Baud: CANProtocol {
     let elmID = "4"
     let name = "ISO 14230-4 KWP (5 baud init)"
-    func parcer(_ lines: [String]) -> [MessageProtocol] {
+    func parce(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
             return []
         }
@@ -229,7 +229,7 @@ public class ISO_14230_4_KWP_Fast: CANProtocol {
     let name = "ISO 14230-4 KWP (fast init)"
     public init() {}
 
-    public func parcer(_ lines: [String]) -> [MessageProtocol] {
+    public func parce(_ lines: [String]) -> [MessageProtocol] {
         guard let messages = LegacyParcer(lines)?.messages else {
             return []
         }

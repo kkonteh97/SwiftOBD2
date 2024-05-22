@@ -165,12 +165,6 @@ public enum PROTOCOL: String, Codable {
     ]
 }
 
-protocol CANProtocol {
-    func parcer(_ lines: [String]) -> [MessageProtocol]
-    var elmID: String { get }
-    var name: String { get }
-}
-
 // dictionary of all the protocols
 let protocols: [PROTOCOL: CANProtocol] = [
     .protocol1: ISO_15765_4_11bit_500k(),

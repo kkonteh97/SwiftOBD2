@@ -23,30 +23,52 @@ enum TxId: UInt8, Codable {
     case engine = 0x00
     case transmission = 0x01
 }
+//public struct CANParser {
+//
+//    public let messages: [Message]
+//
+//    let frames: [Frame]
+//
+//
+//
+//    public init?(_ lines: [String], idBits: Int) {
+//
+//        let obdLines = lines
+//
+//            .map { $0.replacingOccurrences(of: " ", with: "") }
+//
+//            .filter { $0.isHex }
+//
+//
+//
+//        frames = obdLines.compactMap { Frame(raw: $0, idBits: idBits) }
+//
+//
+//
+//        let framesByECU = Dictionary(grouping: frames, by: { $0.txID })
+//
+//
+//
+//        messages = framesByECU.values.compactMap { Message(frames: $0) }
+//
+//    }
+//
+//}
 
-public struct CANParcer {
+public struct CANParser {
     public let messages: [Message]
     let frames: [Frame]
 
     public init?(_ lines: [String], idBits: Int) {
         let obdLines = lines
-            .compactMap { $0.replacingOccurrences(of: " ", with: "") }
+            .map { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
 
-        frames = obdLines.compactMap {
-            if let frame = Frame(raw: $0, idBits: idBits) {
-                return frame
-            } else {
-                print("Failed to create Frame for raw data: \($0)")
-                return nil
-            }
-        }
+        frames = obdLines.compactMap { Frame(raw: $0, idBits: idBits) }
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
 
-        messages = framesByECU.values.compactMap {
-            Message(frames: $0)
-        }
+        messages = framesByECU.values.compactMap { Message(frames: $0) }
     }
 }
 
@@ -81,19 +103,17 @@ public struct Message: MessageProtocol {
                 frame.data.count >= dataLen + 1
         else { // Pre-validate the length
             print("Failed to parse single frame message")
-            print("frame: \(String(describing: frames.first))")
             return nil
         }
         return frame.data.dropFirst(2)
     }
 
     private func parseMultiFrameMessage(_ frames: [Frame]) -> Data? {
-        guard let firstFrameValid = frames.first(where: { $0.type == .firstFrame }),
-              let assembledData = assembleData(firstFrame: firstFrameValid, consecutiveFrames: frames.filter { $0.type == .consecutiveFrame })
-        else {
+        guard let firstFrame = frames.first(where: { $0.type == .firstFrame }) else {
             return nil
         }
-        return assembledData
+        let consecutiveFrames = frames.filter { $0.type == .consecutiveFrame }
+        return assembleData(firstFrame: firstFrame, consecutiveFrames: consecutiveFrames)
     }
 
     private func assembleData(firstFrame: Frame, consecutiveFrames: [Frame]) -> Data? {
@@ -130,28 +150,22 @@ struct Frame {
 
     init?(raw: String, idBits: Int) {
         self.raw = raw
-        var rawData = raw
-        if idBits == 11 {
-            rawData = "00000" + raw
-        }
 
-        let dataBytes = rawData.hexBytes
+        let paddedRawData = idBits == 11 ? "00000" + raw : raw
+
+        let dataBytes = paddedRawData.hexBytes
 
         data = Data(dataBytes.dropFirst(4))
 
-//
-//        guard dataBytes.count % 2 == 0, dataBytes.count >= 6, dataBytes.count <= 12 else {
-//                print(dataBytes.count)
-//                    print("invalid frame size")
-//                    print(dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
-//                    return nil
-//        }
+        guard dataBytes.count >= 6, dataBytes.count <= 12 else {
+                    print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
+                    return nil
+        }
 
         guard let dataType = data.first,
               let type = FrameType(rawValue: dataType & 0xF0)
         else {
-            print(dataBytes.compactMap { String(format: "%02X", $0) })
-            print("invalid frame type")
+            print("invalid frame type", dataBytes.compactMap { String(format: "%02X", $0) })
             return nil
         }
 

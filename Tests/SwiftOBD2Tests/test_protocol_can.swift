@@ -24,16 +24,16 @@ final class test_protocol_can: XCTestCase {
 
     func test_single_frame() {
         for canprotocol in CAN_11_PROTOCOLS {
-            var data = canprotocol.parcer(["7E8 06 41 00 00 01 02 03"]).first?.data
+            var data = canprotocol.parce(["7E8 06 41 00 00 01 02 03"]).first?.data
             XCTAssertNotNil(data)
             XCTAssertEqual(data, Data([0x00, 0x00,0x01, 0x02, 0x03]))
 
             // minimum valid length
-            data = canprotocol.parcer(["7E8 01 41"]).first?.data
+            data = canprotocol.parce(["7E8 01 41"]).first?.data
             XCTAssertNotNil(data)
 
             // to short
-            data = canprotocol.parcer(["7E8 01"]).first?.data
+            data = canprotocol.parce(["7E8 01"]).first?.data
 
             XCTAssertNil(data)
 

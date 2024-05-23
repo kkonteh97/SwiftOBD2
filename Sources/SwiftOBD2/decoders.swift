@@ -261,7 +261,7 @@ public enum Decoders: Equatable {
             case .status:
                 return decodeStatus(data)
             case .temp:
-                return decodeTemp(data, unit: unit)
+                return tempDecoder(data, unit: unit)
             case .percent:
                 return percentDecoder(data)
             case .currentCentered:
@@ -556,7 +556,7 @@ func percentCenteredDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
 
 // -128 to 128 mA
 func currentCenteredDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var value = Double(bytesToInt(data[2 ... 3]))
+    var value = Double(bytesToInt(data.dropFirst(2)))
     value = (value / 256.0) - 128.0
     return .success(.measurementResult(MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes)))
 }
@@ -597,7 +597,7 @@ func airStatusDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
     return .failure(.invalidData)
 }
 
-func decodeTemp(_ data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+func tempDecoder(_ data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
     let value = Double(bytesToInt(data)) - 40.0
     return .success(.measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius)))
 }
@@ -623,7 +623,7 @@ func decodeStatus(_ data: Data) -> Result<DecodeResult, DecodeError> {
     //   [# DTC] X        [supprt] [~ready]
 
     // convert to binaryarray
-    let bits = BitArray(data: data.dropFirst())
+    let bits = BitArray(data: data)
 
     var output = Status()
     output.MIL = bits.binaryArray[0] == 1

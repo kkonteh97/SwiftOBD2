@@ -35,6 +35,11 @@ public extension DecodeResult {
         if case let .troubleCode(res) = self { return res as [TroubleCode] }
         return nil
     }
+
+    var measurementMonitor: Monitor? {
+        if case let .measurementMonitor(res) = self { return res as Monitor }
+        return nil
+    }
 }
 
 public struct CommandProperties {

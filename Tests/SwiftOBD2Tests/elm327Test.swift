@@ -51,7 +51,7 @@ final class ELM327Test: XCTestCase {
 
     func testPIDExtractor() {
         let response = ["86 F1 10 41 00 BF 9F E8 91 9F ", "86 F1 1A 41 00 88 18 80 10 02 "]
-        guard let data = ISO_14230_4_KWP_Fast().parcer(response).first?.data else {
+        guard let data = ISO_14230_4_KWP_Fast().parce(response).first?.data else {
             XCTFail("Expected data to be not nil")
             return
         }

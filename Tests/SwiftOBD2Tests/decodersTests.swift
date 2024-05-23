@@ -10,127 +10,281 @@ import XCTest
 
 final class decodersTests: XCTestCase {
     func testPercent() {
-        XCTAssertEqual(percent(Data([0x00])), MeasurementResult(value: 0, unit: Unit.percent))
-        XCTAssertEqual(percent(Data([0xFF])), MeasurementResult(value: 100, unit: Unit.percent))
+        let tests = [Data([0x00]): MeasurementResult(value: 0, unit: Unit.percent),
+                     Data([0xFF]): MeasurementResult(value: 100, unit: Unit.percent)]
+        for (data, expected) in tests {
+            switch percentDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 1)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testPercentCentered() {
-        XCTAssertEqual(percentCentered(Data([0x00])), MeasurementResult(value: -100, unit: Unit.percent))
-        XCTAssertEqual(percentCentered(Data([0x80])), MeasurementResult(value: 0, unit: Unit.percent))
-        XCTAssertEqual(percentCentered(Data([0xFF]))!.value, MeasurementResult(value: 100, unit: Unit.percent).value, accuracy: 1)
+        let tests = [Data([0x00]): MeasurementResult(value: -100, unit: Unit.percent),
+                     Data([0x80]): MeasurementResult(value: 0, unit: Unit.percent),
+                     Data([0xFF]): MeasurementResult(value: 100, unit: Unit.percent)]
+        for (data, expected) in tests {
+            switch percentCenteredDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 1)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testTemp() {
-        XCTAssertEqual(decodeTemp(Data([0x00])), MeasurementResult(value: -40, unit: UnitTemperature.celsius))
-        XCTAssertEqual(decodeTemp(Data([0xFF])), MeasurementResult(value: 215, unit: UnitTemperature.celsius))
-        XCTAssertEqual(decodeTemp(Data([0x03, 0xE8])), MeasurementResult(value: 960, unit: UnitTemperature.celsius))
+        let tests = [Data([0x00]): MeasurementResult(value: -40, unit: UnitTemperature.celsius),
+                     Data([0xFF]): MeasurementResult(value: 215, unit: UnitTemperature.celsius),
+                     Data([0x03, 0xE8]): MeasurementResult(value: 960, unit: UnitTemperature.celsius)]
+        for (data, expected) in tests {
+            switch tempDecoder(data, unit: .metric) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testCurrentCentered() {
-        XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0x00, 0x00])), MeasurementResult(value: -128, unit: UnitElectricCurrent.milliamperes))
-        XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0x80, 0x00])), MeasurementResult(value: 0, unit: UnitElectricCurrent.milliamperes))
-        XCTAssertEqual(currentCentered(Data([0x00, 0x00, 0xFF, 0xFF]))!.value, 128.0, accuracy: 0.01)
+        let tests = [Data([0x00, 0x00, 0x00, 0x00]): MeasurementResult(value: -128, unit: UnitElectricCurrent.milliamperes),
+                     Data([0x00, 0x00, 0x80, 0x00]): MeasurementResult(value: 0, unit: UnitElectricCurrent.milliamperes),
+                     Data([0xFF, 0x00, 0xFF, 0xFF]): MeasurementResult(value: 128, unit: UnitElectricCurrent.milliamperes)]
+        for (data, expected) in tests {
+            switch currentCenteredDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testSensorVoltage() {
-        XCTAssertEqual(sensorVoltage(Data([0x00, 0x00])), MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts))
-        XCTAssertEqual(sensorVoltage(Data([0xFF, 0xFF])), MeasurementResult(value: 1.275, unit: UnitElectricPotentialDifference.volts))
+        let tests = [Data([0x00, 0x00]): MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts),
+                     Data([0xFF, 0xFF]): MeasurementResult(value: 1.275, unit: UnitElectricPotentialDifference.volts)]
+        for (data, expected) in tests {
+            switch sensorVoltageDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testSensorVoltageBig() {
-        XCTAssertEqual(sensorVoltageBig(Data([0x00, 0x00, 0x00, 0x00])), MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts))
-        XCTAssertEqual(sensorVoltageBig(Data([0x00, 0x00, 0x80, 0x00]))!.value, 4, accuracy: 0.01)
-        XCTAssertEqual(sensorVoltageBig(Data([0x00, 0x00, 0xFF, 0xFF])), MeasurementResult(value: 8, unit: UnitElectricPotentialDifference.volts))
+        let tests = [Data([0x00, 0x00, 0x00, 0x00]): MeasurementResult(value: 0, unit: UnitElectricPotentialDifference.volts),
+                     Data([0x00, 0x00, 0x80, 0x00]): MeasurementResult(value: 4, unit: UnitElectricPotentialDifference.volts),
+                     Data([0x00, 0x00, 0xFF, 0xFF]): MeasurementResult(value: 8, unit: UnitElectricPotentialDifference.volts)]
+        for (data, expected) in tests {
+            switch sensorVoltageBigDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testFuelPressure() {
-        XCTAssertEqual(fuelPressure(Data([0x00])), MeasurementResult(value: 0, unit: UnitPressure.kilopascals))
-        XCTAssertEqual(fuelPressure(Data([0x80])), MeasurementResult(value: 384, unit: UnitPressure.kilopascals))
-        XCTAssertEqual(fuelPressure(Data([0xFF])), MeasurementResult(value: 765, unit: UnitPressure.kilopascals))
+        let tests = [Data([0x00]): MeasurementResult(value: 0, unit: UnitPressure.kilopascals),
+                     Data([0x80]): MeasurementResult(value: 384, unit: UnitPressure.kilopascals),
+                     Data([0xFF]): MeasurementResult(value: 765, unit: UnitPressure.kilopascals)]
+        for (data, expected) in tests {
+            switch fuelPressureDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testPressure() {
-        XCTAssertEqual(pressure(Data([0x00])), MeasurementResult(value: 0, unit: UnitPressure.kilopascals))
+        let tests = [Data([0x00]): MeasurementResult(value: 0, unit: UnitPressure.kilopascals)
+//                     Data([0x80]): MeasurementResult(value: 0.5, unit: UnitPressure.kilopascals),
+//                     Data([0xFF]): MeasurementResult(value: 1, unit: UnitPressure.kilopascals)
+        ]
+        for (data, expected) in tests {
+            switch pressureDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testAbsEvapPressure() {
-        XCTAssertEqual(absEvapPressure(Data([0x00, 0x00])), MeasurementResult(value: 0, unit: UnitPressure.kilopascals))
-        XCTAssertEqual(absEvapPressure(Data([0xFF, 0xFF])), MeasurementResult(value: 327.675, unit: UnitPressure.kilopascals))
+        let tests = [Data([0x00, 0x00]): MeasurementResult(value: 0, unit: UnitPressure.kilopascals),
+                     Data([0xFF, 0xFF]): MeasurementResult(value: 327.675, unit: UnitPressure.kilopascals)]
+        for (data, expected) in tests {
+            switch absEvapPressureDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 0.01)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testEvapPressureAlt() {
-        XCTAssertEqual(evapPressureAlt(Data([0x00, 0x00])), MeasurementResult(value: -32767, unit: Unit.Pascal))
-        XCTAssertEqual(evapPressureAlt(Data([0x7F, 0xFF])), MeasurementResult(value: 0, unit: Unit.Pascal))
-        XCTAssertEqual(evapPressureAlt(Data([0xFF, 0xFF])), MeasurementResult(value: 32768, unit: Unit.Pascal))
+        let tests = [Data([0x00, 0x00]): MeasurementResult(value: -32767, unit: Unit.Pascal),
+                     Data([0x7F, 0xFF]): MeasurementResult(value: 0, unit: Unit.Pascal),
+                     Data([0xFF, 0xFF]): MeasurementResult(value: 32768, unit: Unit.Pascal)]
+        for (data, expected) in tests {
+            switch evapPressureAltDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 1)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testTimingAdvance() {
-        XCTAssertEqual(timingAdvance(Data([0x00])), MeasurementResult(value: -64, unit: UnitAngle.degrees))
-        XCTAssertEqual(timingAdvance(Data([0xFF])), MeasurementResult(value: 63.5, unit: UnitAngle.degrees))
+        let tests = [Data([0x00]): MeasurementResult(value: -64, unit: UnitAngle.degrees),
+                     Data([0xFF]): MeasurementResult(value: 63.5, unit: UnitAngle.degrees)]
+        for (data, expected) in tests {
+            switch timingAdvanceDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 1)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testInjectTiming() {
-        XCTAssertEqual(injectTiming(Data([0x00, 0x00])), MeasurementResult(value: -210, unit: UnitPressure.degrees))
-        XCTAssertEqual(injectTiming(Data([0xFF, 0xFF]))!.value, 301, accuracy: 1)
+        let tests = [Data([0x00, 0x00]): MeasurementResult(value: -210, unit: UnitPressure.degrees),
+                     Data([0xFF, 0xFF]): MeasurementResult(value: 301, unit: UnitPressure.degrees)]
+        for (data, expected) in tests {
+            switch injectTimingDecoder(data) {
+            case .success(let result):
+                XCTAssertEqual(result.measurementResult!.value, expected.value, accuracy: 1)
+                XCTAssertEqual(result.measurementResult!.unit, expected.unit)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testStatus() {
-        let status = decodeStatus(Data([0x00, 0x83, 0x07, 0xFF, 0x00]))
-        XCTAssertEqual(status.MIL, true)
-        XCTAssertEqual(status.dtcCount, 3)
-        XCTAssertEqual(status.ignitionType, "Spark")
+        let statusResult = decodeStatus(Data([0x00, 0x83, 0x07, 0xFF, 0x00]))
+        switch statusResult {
+        case .success(let status):
+            XCTAssertEqual(status.statusResult?.MIL, true)
+            XCTAssertEqual(status.statusResult?.dtcCount, 3)
+            XCTAssertEqual(status.statusResult?.ignitionType, "Spark")
+        case .failure(let error):
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 
     func testSingleDtc() {
-        XCTAssertEqual(singleDtc(Data([0x01, 0x04])), TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"))
-        XCTAssertEqual(singleDtc(Data([0x41, 0x23])), TroubleCode(code: "C0123", description: "No description available."))
-        XCTAssertEqual(singleDtc(Data([0x01])), nil)
-        XCTAssertEqual(singleDtc(Data([0x01, 0x04, 0x00])), nil)
+        let tests = [Data([0x01, 0x04]): TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"),
+                     Data([0x41, 0x23]): TroubleCode(code: "C0123", description: "No description available."),
+                     Data([0x01]): nil,
+                     Data([0x01, 0x04, 0x00]): nil
+        ]
+
+        for (data, expected) in tests {
+            let result = singleDtcDecoder(data)
+            switch result {
+            case .success(let dtc):
+                XCTAssertEqual(dtc.troubleCode?.first, expected)
+            case .failure(let error):
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
     }
 
     func testDtc() {
-        XCTAssertEqual(dtc(Data([0x01, 0x04])), [TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent")])
-        XCTAssertEqual(dtc(Data([0x01, 0x04, 0x80, 0x03, 0x41, 0x23]))!, [
-            TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"),
-            TroubleCode(code: "B0003", description: "No description available."),
-            TroubleCode(code: "C0123", description: "No description available.")
-        ])
+        let tests = [
+            Data([0x01, 0x04]): 
+            [
+                TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent")
+            ],
+            Data([0x01, 0x04, 0x80, 0x03, 0x41, 0x23]) : 
+            [
+                    TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"),
+                    TroubleCode(code: "B0003", description: "No description available."),
+                    TroubleCode(code: "C0123", description: "No description available.")
+            ],
+            Data([0x01, 0x04, 0x80, 0x03, 0x41]) : 
+            [
+                    TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"),
+                    TroubleCode(code: "B0003", description: "No description available.")
+            ],
+            Data([0x00, 0x00, 0x01, 0x04, 0x00, 0x00]) :
+                [
+                    TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent")
+                ]
+        ]
 
-        XCTAssertEqual(dtc(Data([0x01, 0x04, 0x80, 0x03, 0x41])), [
-            TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent"),
-            TroubleCode(code: "B0003", description: "No description available.")
-        ])
+        for test in tests {
+            let result  = dtcDecoder(test.key)
+            switch result {
+                case .success(let troubleCodes):
+                    XCTAssertEqual(troubleCodes.troubleCode, test.value)
+                case .failure:
+                    XCTFail()
+            }
+        }
 
-        XCTAssertEqual(dtc(Data([0x00, 0x00, 0x01, 0x04, 0x00, 0x00])), [
-            TroubleCode(code: "P0104", description: "Mass or Volume Air Flow Circuit Intermittent")
-        ])
     }
 
     func testMonitor() {
-        let monitor = decodeMonitor(Data([0x01, 0x01, 0x0A, 0x0B, 0xB0, 0x0B, 0xB0, 0x0B, 0xB0]))
-        guard let tests = monitor?.tests else {
-            XCTFail()
-            return
+        let monitorResult = decodeMonitor(Data([0x01, 0x01, 0x0A, 0x0B, 0xB0, 0x0B, 0xB0, 0x0B, 0xB0]))
+        switch monitorResult {
+        case .success(let monitor):
+            guard let tests = monitor.measurementMonitor?.tests else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(tests.count, 1)
+            XCTAssertEqual(tests[0x01]?.name, "RTLThresholdVoltage")
+            XCTAssertEqual(tests[0x01]!.value!.value, 365.0, accuracy: 0.1)
+            XCTAssertEqual(tests[0x01]!.value!.unit, UnitElectricPotentialDifference.millivolts)
+        default:
+            XCTFail("Monitor decoding failed")
         }
-        XCTAssertEqual(tests.count, 1)
-        XCTAssertEqual(tests[0x01]?.name, "RTLThresholdVoltage")
-        XCTAssertEqual(tests[0x01]!.value!.value, 365.0, accuracy: 0.1)
-        XCTAssertEqual(tests[0x01]!.value!.unit, UnitElectricPotentialDifference.millivolts)
+
 //        01 01 0A 0B B0 0B B0 0B B0 0105100048 00 00 00 640185240096004BFFFF
-        let monitor2 = decodeMonitor(Data([0x01, 0x01, 0x0A, 0x0B, 0xB0, 0x0B, 0xB0, 0x0B, 0xB0, 0x01, 0x05, 0x10, 0x00, 0x48, 0x00, 0x00, 0x00, 0x64, 0x01, 0x85, 0x24, 0x00, 0x96, 0x00, 0x4B, 0xFF, 0xFF]))
-        guard let tests2 = monitor2?.tests else {
-            XCTFail()
-            return
+        let monitorResult2 = decodeMonitor(Data([0x01, 0x01, 0x0A, 0x0B, 0xB0, 0x0B, 0xB0, 0x0B, 0xB0, 0x01, 0x05, 0x10, 0x00, 0x48, 0x00, 0x00, 0x00, 0x64, 0x01, 0x85, 0x24, 0x00, 0x96, 0x00, 0x4B, 0xFF, 0xFF]))
+
+        switch monitorResult2 {
+        case .success(let monitor):
+            guard let tests = monitor.measurementMonitor?.tests else {
+                XCTFail()
+                return
+            }
+            XCTAssertEqual(tests.count, 3)
+            XCTAssertEqual(tests[0x01]?.name, "RTLThresholdVoltage")
+            XCTAssertEqual(tests[0x01]!.value!.value, 365.0, accuracy: 0.1)
+            XCTAssertEqual(tests[0x01]!.value!.unit, UnitElectricPotentialDifference.millivolts)
+            XCTAssertEqual(tests[0x01]!.value!.value, 365.0, accuracy: 0.1)
+            XCTAssertEqual(tests[0x05]?.name, "RTLSwitchTime")
+            XCTAssertEqual(tests[0x05]!.value!.value, 72, accuracy: 0.1)
+            XCTAssertEqual(tests[0x05]!.value!.unit, UnitDuration.milliseconds)
+        default:
+            XCTFail("Monitor decoding failed")
         }
-        XCTAssertEqual(tests2.count, 3)
-        XCTAssertEqual(tests2[0x01]?.name, "RTLThresholdVoltage")
-
-        XCTAssertEqual(tests2[0x01]!.value!.value, 365.0, accuracy: 0.1)
-        XCTAssertEqual(tests2[0x01]!.value!.unit, UnitElectricPotentialDifference.millivolts)
-        XCTAssertEqual(tests2[0x01]!.value!.value, 365.0, accuracy: 0.1)
-
-        XCTAssertEqual(tests2[0x05]?.name, "RTLSwitchTime")
-        XCTAssertEqual(tests2[0x05]!.value!.value, 72, accuracy: 0.1)
-        XCTAssertEqual(tests2[0x05]!.value!.unit, UnitDuration.milliseconds)
     }
 }

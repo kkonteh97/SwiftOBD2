@@ -17,117 +17,92 @@ public enum ECUID: UInt8, Codable {
     case engine = 0x00
     case transmission = 0x01
     case unknown = 0x02
+
+    public var description: String {
+        switch self {
+        case .engine:
+            return "Engine"
+        case .transmission:
+            return "Transmission"
+        case .unknown:
+            return "Unknown"
+        }
+    }
 }
 
 enum TxId: UInt8, Codable {
     case engine = 0x00
     case transmission = 0x01
 }
-//public struct CANParser {
-//
-//    public let messages: [Message]
-//
-//    let frames: [Frame]
-//
-//
-//
-//    public init?(_ lines: [String], idBits: Int) {
-//
-//        let obdLines = lines
-//
-//            .map { $0.replacingOccurrences(of: " ", with: "") }
-//
-//            .filter { $0.isHex }
-//
-//
-//
-//        frames = obdLines.compactMap { Frame(raw: $0, idBits: idBits) }
-//
-//
-//
-//        let framesByECU = Dictionary(grouping: frames, by: { $0.txID })
-//
-//
-//
-//        messages = framesByECU.values.compactMap { Message(frames: $0) }
-//
-//    }
-//
-//}
 
 public struct CANParser {
     public let messages: [Message]
     let frames: [Frame]
 
-    public init?(_ lines: [String], idBits: Int) {
+    public init(_ lines: [String], idBits: Int) throws {
         let obdLines = lines
             .map { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
 
-        frames = obdLines.compactMap { Frame(raw: $0, idBits: idBits) }
+        frames = try obdLines.compactMap { try Frame(raw: $0, idBits: idBits) }
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
 
-        messages = framesByECU.values.compactMap { Message(frames: $0) }
+        messages = try framesByECU.values.compactMap { try Message(frames: $0) }
     }
 }
 
 public struct Message: MessageProtocol {
     var frames: [Frame]
-    public var data: Data? {
-        switch frames.count {
-        case 1:
-            return parseSingleFrameMessage(frames)
-        case 2...:
-            return parseMultiFrameMessage(frames)
-        default:
-            return nil
-        }
-    }
+    public var data: Data?
 
     public var ecu: ECUID {
         return frames.first?.txID ?? .unknown
     }
 
-    init?(frames: [Frame]) {
-        guard !frames.isEmpty else {
-            return nil
-        }
+    init(frames: [Frame]) throws {
         self.frames = frames
+        switch frames.count {
+        case 1:
+            self.data = try parseSingleFrameMessage(frames)
+        case 2...:
+            self.data = try parseMultiFrameMessage(frames)
+        default:
+            throw ParserError.error("Invalid frame count")
+        }
     }
 
-    private func parseSingleFrameMessage(_ frames: [Frame]) -> Data? {
+    private func parseSingleFrameMessage(_ frames: [Frame]) throws -> Data {
 
         guard let frame = frames.first, frame.type == .singleFrame,
               let dataLen = frame.dataLen, dataLen > 0,
                 frame.data.count >= dataLen + 1
         else { // Pre-validate the length
-            print("Failed to parse single frame message")
-            return nil
+            throw ParserError.error("Frame validation failed")
         }
         return frame.data.dropFirst(2)
     }
 
-    private func parseMultiFrameMessage(_ frames: [Frame]) -> Data? {
+    private func parseMultiFrameMessage(_ frames: [Frame]) throws -> Data {
         guard let firstFrame = frames.first(where: { $0.type == .firstFrame }) else {
-            return nil
+            throw ParserError.error("Failed to parse multi frame message")
         }
         let consecutiveFrames = frames.filter { $0.type == .consecutiveFrame }
-        return assembleData(firstFrame: firstFrame, consecutiveFrames: consecutiveFrames)
+        return try assembleData(firstFrame: firstFrame, consecutiveFrames: consecutiveFrames)
     }
 
-    private func assembleData(firstFrame: Frame, consecutiveFrames: [Frame]) -> Data? {
+    private func assembleData(firstFrame: Frame, consecutiveFrames: [Frame]) throws -> Data {
         var assembledFrame: Frame = firstFrame
         // Extract data from consecutive frames, skipping the PCI byte
         for frame in consecutiveFrames {
             assembledFrame.data.append(frame.data[1...])
         }
-        return extractDataFromFrame(assembledFrame, startIndex: 3)
+        return try extractDataFromFrame(assembledFrame, startIndex: 3)
     }
 
-    private func extractDataFromFrame(_ frame: Frame, startIndex: Int) -> Data? {
+    private func extractDataFromFrame(_ frame: Frame, startIndex: Int) throws -> Data {
         guard let frameDataLen = frame.dataLen else {
-            return nil
+            throw ParserError.error("Failed to extract data from frame")
         }
         let endIndex = startIndex + Int(frameDataLen) - 1
         guard endIndex <= frame.data.count else {
@@ -148,7 +123,7 @@ struct Frame {
     var seqIndex: UInt8 = 0 // Only used when type = CF
     var dataLen: UInt8?
 
-    init?(raw: String, idBits: Int) {
+    init(raw: String, idBits: Int) throws {
         self.raw = raw
 
         let paddedRawData = idBits == 11 ? "00000" + raw : raw
@@ -158,15 +133,15 @@ struct Frame {
         data = Data(dataBytes.dropFirst(4))
 
         guard dataBytes.count >= 6, dataBytes.count <= 12 else {
-                    print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
-                    return nil
+            print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
+            throw ParserError.error("Invalid frame size")
         }
 
         guard let dataType = data.first,
               let type = FrameType(rawValue: dataType & 0xF0)
         else {
             print("invalid frame type", dataBytes.compactMap { String(format: "%02X", $0) })
-            return nil
+            throw ParserError.error("Invalid frame type")
         }
 
         priority = dataBytes[2] & 0x0F
@@ -184,4 +159,8 @@ struct Frame {
             seqIndex = data[0] & 0x0F
         }
     }
+}
+
+enum ParserError: Error {
+    case error(String)
 }

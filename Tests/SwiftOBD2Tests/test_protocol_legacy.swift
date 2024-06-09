@@ -20,16 +20,16 @@ final class test_protocol_legacy: XCTestCase {
     func test_single_frame() {
         for canprotocol in LEGACY_PROTOCOLS {
             // minimum valid length
-            var data = canprotocol.parce(["48 6B 10 41 00 FF"]).first?.data
+            var data = try? canprotocol.parse(["48 6B 10 41 00 FF"]).first?.data
             XCTAssertEqual(data, Data([0x00]))
 
             // maximum valid length
 
-            data = canprotocol.parce(["48 6B 10 41 00 00 01 02 03 04 FF"]).first?.data
+            data = try? canprotocol.parse(["48 6B 10 41 00 00 01 02 03 04 FF"]).first?.data
             XCTAssertEqual(data, Data([0x00, 0x00, 0x01, 0x02, 0x03, 0x04]))
 
             // to short
-            data = canprotocol.parce(["48 6B 10 41"]).first?.data
+            data = try? canprotocol.parse(["48 6B 10 41"]).first?.data
             XCTAssertNil(data)
         }
     }

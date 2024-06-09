@@ -30,7 +30,7 @@ final class OBDParcerTest: XCTestCase {
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
         let frameType = FrameType.singleFrame
-        let frame = Frame(raw: rawFrameString[0], idBits: 11)
+        let frame = try? Frame(raw: rawFrameString[0], idBits: 11)
 
         // Verify
         XCTAssertEqual(frame?.type, frameType)
@@ -45,7 +45,7 @@ final class OBDParcerTest: XCTestCase {
             .filter { $0.isHex }
 
         let frameType = FrameType.firstFrame
-        let frame = Frame(raw: rawFrameString[0], idBits: 11)
+        let frame = try? Frame(raw: rawFrameString[0], idBits: 11)
 
         // Verify
         XCTAssertEqual(frame?.type, frameType)
@@ -56,8 +56,11 @@ final class OBDParcerTest: XCTestCase {
         let rawFrameString = ["7E8 06 41 00 BE 3F A8 13 00"]
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
-        let frame = Frame(raw: rawFrameString[0], idBits: 11)
-        let message = Message(frames: [frame!])
+        guard let frame = try? Frame(raw: rawFrameString[0], idBits: 11) else {
+            XCTFail("Failed to initialize frame")
+            return
+        }
+        let message = try? Message(frames: [frame])
 
         // Verify
         XCTAssertNotNil(message)

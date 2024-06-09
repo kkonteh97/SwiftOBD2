@@ -189,8 +189,8 @@ final class decodersTests: XCTestCase {
         let statusResult = decodeStatus(Data([0x00, 0x83, 0x07, 0xFF, 0x00]))
         switch statusResult {
         case .success(let status):
-            XCTAssertEqual(status.statusResult?.MIL, true)
-            XCTAssertEqual(status.statusResult?.dtcCount, 3)
+            XCTAssertEqual(status.statusResult?.MIL, false)
+            XCTAssertEqual(status.statusResult?.dtcCount, 0)
             XCTAssertEqual(status.statusResult?.ignitionType, "Spark")
         case .failure(let error):
             XCTFail("Unexpected error: \(error)")

@@ -1,4 +1,5 @@
 import Combine
+import CoreBluetooth
 import Foundation
 
 public enum ConnectionType: String, CaseIterable {
@@ -27,26 +28,38 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         }
     }
 
+    @Published public  var isScanning: Bool = false
+    @Published public  var peripherals: [CBPeripheral] = []
+    @Published public  var connectedPeripheral: CBPeripheral?
+
     /// The internal ELM327 object responsible for direct adapter interaction.
     private var elm327: ELM327
+
+    private var cancellables = Set<AnyCancellable>()
 
     /// Initializes the OBDService object.
     ///
     /// - Parameter connectionType: The desired connection type (default is Bluetooth).
     public init(connectionType: ConnectionType = .bluetooth) {
+        self.connectionType = connectionType
         #if targetEnvironment(simulator)
             elm327 = ELM327(comm: MOCKComm())
         #else
         switch connectionType {
         case .bluetooth:
-            elm327 = ELM327(comm: BLEManager())
+            let bleManager = BLEManager()
+            elm327 = ELM327(comm: bleManager)
+            bleManager.peripheralPublisher
+                .sink { [weak self] peripheral in
+                  self?.peripherals.append(peripheral)
+                }
+                .store(in: &cancellables)
         case .wifi:
             elm327 = ELM327(comm: WifiManager())
         case .demo:
             elm327 = ELM327(comm: MOCKComm())
         }
         #endif
-        self.connectionType = connectionType
         elm327.obdDelegate = self
     }
 
@@ -93,6 +106,8 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///
     /// - Parameter connectionType: The new desired connection type.
     public func switchConnectionType(_ connectionType: ConnectionType) {
+        self.stopConnection()
+        self.connectionState = .disconnected
         switch connectionType {
         case .bluetooth:
             elm327 = ELM327(comm: BLEManager())
@@ -108,39 +123,32 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
 
     var pidList: [OBDCommand] = []
 
+
     /// Sends an OBD2 command to the vehicle and returns a publisher with the result.
     /// - Parameter command: The OBD2 command to send.
     /// - Returns: A publisher with the measurement result.
     /// - Throws: Errors that might occur during the request process.
-    public func startContinuousUpdates(_ pids: [OBDCommand],
-                                       unit: MeasurementUnit = .metric,
-                                       interval: TimeInterval = 0.3) -> AnyPublisher<[OBDCommand: MeasurementResult], Error> {
-        self.pidList = pids
-        return Timer.publish(every: interval, on: .main, in: .common)
+    public func startContinuousUpdates(_ pids: [OBDCommand], unit: MeasurementUnit = .metric, interval: TimeInterval = 0.3) -> AnyPublisher<[OBDCommand: MeasurementResult], Error> {
+        Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
-            .flatMap { [weak self] _ in
-                return Future<[OBDCommand: MeasurementResult], Error> { promise in
+            .flatMap { [weak self] _ -> Future<[OBDCommand: MeasurementResult], Error> in
+                Future { promise in
                     guard let self = self else {
                         promise(.failure(OBDServiceError.notConnectedToVehicle))
                         return
                     }
-
                     Task(priority: .userInitiated) {
                         do {
-                            let results = try await self.requestPIDs(self.pidList, unit: unit)
-                            DispatchQueue.main.async {
-                                promise(.success(results))
-                            }
+                            let results = try await self.requestPIDs(pids, unit: unit)
+                            promise(.success(results))
                         } catch {
-                            DispatchQueue.main.async {
-                                promise(.failure(error))
-                            }
+                            promise(.failure(error))
                         }
                     }
                 }
             }
             .eraseToAnyPublisher()
-    }
+     }
 
     /// Adds an OBD2 command to the list of commands to be requested.
     public func addPID(_ pid: OBDCommand) {
@@ -159,9 +167,9 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func requestPIDs(_ commands: [OBDCommand], unit: MeasurementUnit) async throws -> [OBDCommand: MeasurementResult] {
         let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
 
-        guard let responseData = elm327.canProtocol?.parce(response).first?.data else { return [:] }
+        guard let responseData = try elm327.canProtocol?.parse(response).first?.data else { return [:] }
 
-        var batchedResponse = BatchedResponse(response: responseData, unit: unit)
+        var batchedResponse = BatchedResponse(response: responseData, unit)
 
         let results: [OBDCommand: MeasurementResult] = commands.reduce(into: [:]) { result, command in
             let measurement = batchedResponse.extractValue(command)
@@ -178,7 +186,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func sendCommand(_ command: OBDCommand) async throws -> Result<DecodeResult, DecodeError> {
         do {
             let response = try await sendCommand(command.properties.command)
-            guard let responseData = elm327.canProtocol?.parce(response).first?.data else {
+            guard let responseData = try elm327.canProtocol?.parse(response).first?.data else {
                 return .failure(.noData)
             }
             return command.properties.decode(data: responseData.dropFirst())
@@ -240,6 +248,28 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             return try await elm327.sendCommand(message)
         } catch {
             throw OBDServiceError.commandFailed(command: message, error: error)
+        }
+    }
+
+    public func connectToPeripheral(peripheral: CBPeripheral) async throws {
+        do {
+            try await elm327.connectToAdapter(timeout: 5,peripheral: peripheral)
+        } catch {
+            throw OBDServiceError.adapterConnectionFailed(underlyingError: error)
+        }
+    }
+
+    public func scanForPeripherals() async throws {
+        do {
+            DispatchQueue.main.async {
+                self.isScanning = true
+            }
+            try await elm327.scanForPeripherals()
+            DispatchQueue.main.async {
+                self.isScanning = false
+            }
+        } catch {
+            throw OBDServiceError.scanFailed(underlyingError: error)
         }
     }
 }

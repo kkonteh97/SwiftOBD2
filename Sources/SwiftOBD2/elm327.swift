@@ -16,6 +16,7 @@
 import Combine
 import Foundation
 import OSLog
+import CoreBluetooth
 
 class ELM327 {
     private var obdProtocol: PROTOCOL = .NONE
@@ -93,7 +94,7 @@ class ELM327 {
 
         let supportedPIDs = await getSupportedPIDs()
 
-        guard let messages = canProtocol?.parce(r100) else {
+        guard let messages = try canProtocol?.parse(r100) else {
             throw SetupError.invalidResponse(message: "Invalid response to 0100")
         }
 
@@ -194,8 +195,8 @@ class ELM327 {
 
     // MARK: - Adapter Initialization
 
-    func connectToAdapter(timeout: TimeInterval) async throws {
-        try await comm.connectAsync(timeout: timeout)
+    func connectToAdapter(timeout: TimeInterval, peripheral: CBPeripheral? = nil) async throws {
+        try await comm.connectAsync(timeout: timeout, peripheral: peripheral)
     }
 
     /// Initializes the adapter by sending a series of commands.
@@ -239,7 +240,6 @@ class ELM327 {
         if response.contains("OK") {
             return response
         } else {
-            print("Invalid response: \(response)")
             logger.error("Invalid response: \(response)")
             throw SetupError.invalidResponse(message: "message: \(message), \(String(describing: response.first))")
         }
@@ -250,7 +250,7 @@ class ELM327 {
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         logger.debug("Status response: \(statusResponse)")
-        guard let statusData = canProtocol?.parce(statusResponse).first?.data else {
+        guard let statusData = try canProtocol?.parse(statusResponse).first?.data else {
             return .failure(.noData)
         }
         return statusCommand.properties.decode(data: statusData)
@@ -262,7 +262,7 @@ class ELM327 {
         let dtcCommand = OBDCommand.Mode3.GET_DTC
         let dtcResponse = try await sendCommand(dtcCommand.properties.command)
 
-        guard let messages = canProtocol?.parce(dtcResponse) else {
+        guard let messages = try canProtocol?.parse(dtcResponse) else {
             return [:]
         }
         for message in messages {
@@ -289,6 +289,10 @@ class ELM327 {
         _ = try await sendCommand(command.properties.command)
     }
 
+    func scanForPeripherals() async throws {
+        try await comm.scanForPeripherals()
+    }
+
     func requestVin() async -> String? {
         let command = OBDCommand.Mode9.VIN
         guard let vinResponse = try? await sendCommand(command.properties.command) else {
@@ -296,7 +300,7 @@ class ELM327 {
         }
 
 
-        guard let data = canProtocol?.parce(vinResponse).first?.data,
+        guard let data = try? canProtocol?.parse(vinResponse).first?.data,
               var vinString = String(bytes: data, encoding: .utf8)
         else {
             return nil
@@ -408,7 +412,7 @@ extension ELM327 {
     }
 
     private func parseResponse(_ response: [String]) -> Set<String>? {
-        guard let ecuData = canProtocol?.parce(response).first?.data else {
+        guard let ecuData = try? canProtocol?.parse(response).first?.data else {
             return nil
         }
         let binaryData = BitArray(data: ecuData.dropFirst()).binaryArray
@@ -431,7 +435,7 @@ extension ELM327 {
 struct BatchedResponse {
     private var response: Data
     private var unit: MeasurementUnit
-    init(response: Data, unit: MeasurementUnit) {
+    init(response: Data, _ unit: MeasurementUnit) {
         self.response = response
         self.unit = unit
     }
@@ -450,7 +454,7 @@ struct BatchedResponse {
             case .success(let measurementResult):
                 return measurementResult.measurementResult
         case .failure(let error):
-            logger.error("Failed to decode \(cmd.properties.command): \(error.localizedDescription)")
+            print("Failed to decode \(cmd.properties.command): \(error.localizedDescription)")
             return nil
         }
     }

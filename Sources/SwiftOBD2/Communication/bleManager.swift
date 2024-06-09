@@ -26,6 +26,12 @@ public enum ConnectionState {
 }
 
 class BLEManager: NSObject, CommProtocol {
+    private let peripheralSubject = PassthroughSubject<CBPeripheral, Never>()
+
+    var peripheralPublisher: AnyPublisher<CBPeripheral, Never> {
+      return peripheralSubject.eraseToAnyPublisher()
+    }
+
     static let services = [
         CBUUID(string: "FFE0"),
         CBUUID(string: "FFF0"),
@@ -109,13 +115,25 @@ class BLEManager: NSObject, CommProtocol {
         }
     }
 
-    func didDiscover(_: CBCentralManager, peripheral: CBPeripheral, advertisementData _: [String: Any], rssi _: NSNumber) {
+    func didDiscover(_: CBCentralManager, peripheral: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
 //        connect(to: peripheral)
-//        appendFoundPeripheral(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
+        appendFoundPeripheral(peripheral: peripheral, advertisementData: advertisementData, rssi: rssi)
         if foundPeripheralCompletion != nil {
             foundPeripheralCompletion?(peripheral, nil)
         }
     }
+
+    @Published var foundPeripherals: [CBPeripheral] = []
+
+     func appendFoundPeripheral(peripheral: CBPeripheral, advertisementData: [String : Any], rssi: NSNumber) {
+        if rssi.intValue >= 0 { return }
+        if let index = foundPeripherals.firstIndex(where: { $0.identifier.uuidString == peripheral.identifier.uuidString }) {
+            foundPeripherals[index] = peripheral
+        } else {
+            peripheralSubject.send(peripheral)
+            foundPeripherals.append(peripheral)
+        }
+     }
 
     func connect(to peripheral: CBPeripheral) {
         logger.info("Connecting to: \(peripheral.name ?? "")")
@@ -247,7 +265,7 @@ class BLEManager: NSObject, CommProtocol {
 
     // MARK: - Async Methods
 
-    func connectAsync(timeout: TimeInterval) async throws {
+    func connectAsync(timeout: TimeInterval, peripheral: CBPeripheral? = nil) async throws {
         if connectionState != .disconnected {
             return
         }
@@ -340,6 +358,13 @@ class BLEManager: NSObject, CommProtocol {
             }
             buffer.removeAll()
         }
+    }
+
+    func scanForPeripherals() async throws {
+        self.startScanning(nil)
+        // Wait 10 seconds for the scan to complete without blocking the main thread.
+        try await Task.sleep(nanoseconds: 10_000_000_000)
+        self.centralManager.stopScan()
     }
 
     /// Cancels the current operation and throws a timeout error.
@@ -462,33 +487,3 @@ enum BLEManagerError: Error, CustomStringConvertible {
         }
     }
 }
-
-// func appendFoundPeripheral(peripheral: CBPeripheralProtocol, advertisementData: [String : Any], rssi: NSNumber) {
-//    if rssi.intValue >= 0 { return }
-//    let peripheralName = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? nil
-//    var _name = "NoName"
-//
-//    if peripheralName != nil {
-//        _name = String(peripheralName!)
-//    } else if peripheral.name != nil {
-//        _name = String(peripheral.name!)
-//    }
-//
-//    let foundPeripheral: Peripheral = Peripheral(_peripheral: peripheral,
-//                                                 _name: _name,
-//                                                 _advData: advertisementData,
-//                                                 _rssi: rssi,
-//                                                 _discoverCount: 0)
-//
-//    if let index = foundPeripherals.firstIndex(where: { $0.peripheral.identifier.uuidString == peripheral.identifier.uuidString }) {
-//        if foundPeripherals[index].discoverCount % 50 == 0 {
-//            foundPeripherals[index].name = _name
-//            foundPeripherals[index].rssi = rssi.intValue
-//            foundPeripherals[index].discoverCount += 1
-//        } else {
-//            foundPeripherals[index].discoverCount += 1
-//        }
-//    } else {
-//        foundPeripherals.append(foundPeripheral)
-//    }
-// }

@@ -8,8 +8,6 @@
 import Foundation
 import OSLog
 
-let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "parcer")
-
 struct FramesByECU {
   let txID: ECUID
     var frames: [LegacyFrame]
@@ -19,56 +17,50 @@ public struct LegacyParcer {
     let messages: [LegacyMessage]
     let frames: [LegacyFrame]
 
-    public init?(_ lines: [String]) {
+    public init(_ lines: [String]) throws {
         let obdLines = lines
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
             .filter { $0.isHex }
 
-        frames = obdLines.compactMap {
-            if let frame = LegacyFrame(raw: $0) {
-                return frame
-            } else {
-                logger.error("Failed to create Frame for raw data: \($0)")
-                return nil
-            }
+        frames = try obdLines.compactMap {
+            return try LegacyFrame(raw: $0)
         }
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
-        messages = framesByECU.values.compactMap {
-            LegacyMessage(frames: $0)
+        messages = try framesByECU.values.compactMap {
+            try LegacyMessage(frames: $0)
         }
     }
 }
 
 struct LegacyMessage: MessageProtocol {
     var frames: [LegacyFrame]
-    public var data: Data? {
+    public var data: Data?
+
+    public var ecu: ECUID
+
+    init(frames: [LegacyFrame]) throws {
+//        guard !frames.isEmpty else {
+//            return nil
+//        }
+        self.frames = frames
+        self.ecu = frames.first?.txID ?? .unknown
+
         switch frames.count {
         case 1:
-            return parseSingleFrameMessage(frames)
+            self.data = try parseSingleFrameMessage(frames)
         case 2...:
-            return parseMultiFrameMessage(frames)
+            self.data = try parseMultiFrameMessage(frames)
         default:
-            return nil
+            throw ParserError.error("Invalid frame count")
         }
+
     }
 
-    public var ecu: ECUID {
-        return frames.first?.txID ?? .unknown
-    }
-
-    init?(frames: [LegacyFrame]) {
-        guard !frames.isEmpty else {
-            return nil
-        }
-        self.frames = frames
-    }
-
-    private func parseSingleFrameMessage(_ frames: [LegacyFrame]) -> Data? {
+    private func parseSingleFrameMessage(_ frames: [LegacyFrame]) throws -> Data {
 
         guard let frame = frames.first else { // Pre-validate the length
-            print("Failed to parse single frame message")
-            return nil
+            throw ParserError.error("Frame validation failed")
         }
 
         let mode = frame.data.first
@@ -86,7 +78,7 @@ struct LegacyMessage: MessageProtocol {
         }
     }
 
-    private func parseMultiFrameMessage(_ frames: [LegacyFrame]) -> Data? {
+    private func parseMultiFrameMessage(_ frames: [LegacyFrame]) throws -> Data {
         let mode = frames.first?.data.first
 
         if mode == 0x43 {
@@ -117,8 +109,7 @@ struct LegacyMessage: MessageProtocol {
 
             // check contiguity
             guard sortedFrames.first?.data[2] == 1 else {
-                print("Invalid order byte")
-                return nil
+                throw ParserError.error("Invalid order byte")
             }
 
             // now that they're in order, accumulate the data from each frame
@@ -132,18 +123,18 @@ struct LegacyMessage: MessageProtocol {
         }
     }
 
-    private func assembleData(firstFrame: LegacyFrame, consecutiveFrames: [LegacyFrame]) -> Data? {
-        var assembledFrame: LegacyFrame = firstFrame
-        // Extract data from consecutive frames, skipping the PCI byte
-        for frame in consecutiveFrames {
-            assembledFrame.data.append(frame.data[1...])
-        }
-        return extractDataFromFrame(assembledFrame, startIndex: 3)
-    }
-
-    private func extractDataFromFrame(_ frame: LegacyFrame, startIndex: Int) -> Data? {
-        return nil
-    }
+//    private func assembleData(firstFrame: LegacyFrame, consecutiveFrames: [LegacyFrame]) -> Data {
+//        var assembledFrame: LegacyFrame = firstFrame
+//        // Extract data from consecutive frames, skipping the PCI byte
+//        for frame in consecutiveFrames {
+//            assembledFrame.data.append(frame.data[1...])
+//        }
+//        return extractDataFromFrame(assembledFrame, startIndex: 3)
+//    }
+//
+//    private func extractDataFromFrame(_ frame: LegacyFrame, startIndex: Int) -> Data? {
+//        return nil
+//    }
 }
 
 
@@ -154,7 +145,7 @@ struct LegacyFrame {
     var rxID: UInt8
     var txID: ECUID
 
-    init?(raw: String) {
+    init(raw: String) throws {
         self.raw = raw
         var rawData = raw
 
@@ -162,8 +153,7 @@ struct LegacyFrame {
 
         data = Data(dataBytes.dropFirst(3).dropLast())
         guard dataBytes.count >= 6, dataBytes.count <= 12 else {
-            print("invalid frame size", dataBytes.count, dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
-            return nil
+            throw ParserError.error("Invalid frame size")
         }
 
         priority = dataBytes[0]
@@ -180,47 +170,32 @@ public protocol MessageProtocol {
 class SAE_J1850_PWM: CANProtocol {
     let elmID = "1"
     let name = "SAE J1850 PWM"
-    func parce(_ lines: [String]) -> [MessageProtocol] {
-        guard let messages = LegacyParcer(lines)?.messages else {
-            return []
-        }
-
-        return messages
+    func parse(_ lines: [String]) throws -> [MessageProtocol] {
+        return try parseLegacy(lines)
     }
 }
 
 class SAE_J1850_VPW: CANProtocol {
     let elmID = "2"
     let name = "SAE J1850 VPW"
-    func parce(_ lines: [String]) -> [MessageProtocol] {
-        guard let messages = LegacyParcer(lines)?.messages else {
-            return []
-        }
-
-        return messages
+    func parse(_ lines: [String]) throws -> [MessageProtocol] {
+        return try parseLegacy(lines)
     }
 }
 
 class ISO_9141_2: CANProtocol {
     let elmID = "3"
     let name = "ISO 9141-2"
-    func parce(_ lines: [String]) -> [MessageProtocol] {
-        guard let messages = LegacyParcer(lines)?.messages else {
-            return []
-        }
-
-        return messages
+    func parse(_ lines: [String]) throws -> [MessageProtocol] {
+        return try parseLegacy(lines)
     }
 }
 
 class ISO_14230_4_KWP_5Baud: CANProtocol {
     let elmID = "4"
     let name = "ISO 14230-4 KWP (5 baud init)"
-    func parce(_ lines: [String]) -> [MessageProtocol] {
-        guard let messages = LegacyParcer(lines)?.messages else {
-            return []
-        }
-        return messages
+    func parse(_ lines: [String]) throws -> [MessageProtocol] {
+        return try parseLegacy(lines)
     }
 }
 
@@ -229,17 +204,7 @@ public class ISO_14230_4_KWP_Fast: CANProtocol {
     let name = "ISO 14230-4 KWP (fast init)"
     public init() {}
 
-    public func parce(_ lines: [String]) -> [MessageProtocol] {
-        guard let messages = LegacyParcer(lines)?.messages else {
-            return []
-        }
-
-        for message in messages {
-//            print("ECU: \(String(format: "%02X", message.ecu ?? 0))")
-//            print("Data: \(message.data?.compactMap { String(format: "%02X", $0) } ?? [])")
-        }
-
-
-        return messages
+    public func parse(_ lines: [String]) throws -> [MessageProtocol] {
+        return try parseLegacy(lines)
     }
 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import OSLog
+import CoreBluetooth
 
 enum CommandAction {
     case setHeaderOn
@@ -161,7 +162,7 @@ class MOCKComm: CommProtocol {
             response = mode + " " + response
             let length = String(format: "%02X", response.count / 3 + 1)
             response = header + " " + length + " " + response
-            while response.count < 28 {
+            while response.count < 26 {
                 response.append(" 00")
             }
             return [response]
@@ -183,9 +184,13 @@ class MOCKComm: CommProtocol {
         obdDelegate?.connectionStateChanged(state: .disconnected)
     }
 
-    func connectAsync(timeout: TimeInterval) async throws {
+    func connectAsync(timeout: TimeInterval, peripheral: CBPeripheral? = nil) async throws {
         connectionState = .connectedToAdapter
         obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
+    }
+
+    func scanForPeripherals() async throws {
+
     }
 }
 

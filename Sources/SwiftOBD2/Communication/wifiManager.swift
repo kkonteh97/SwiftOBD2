@@ -8,11 +8,13 @@
 import Foundation
 import Network
 import OSLog
+import CoreBluetooth
 
 protocol CommProtocol {
     func sendCommand(_ command: String) async throws -> [String]
     func disconnectPeripheral()
-    func connectAsync(timeout: TimeInterval) async throws
+    func connectAsync(timeout: TimeInterval, peripheral: CBPeripheral?) async throws
+    func scanForPeripherals() async throws
     var connectionStatePublisher: Published<ConnectionState>.Publisher { get }
     var obdDelegate: OBDServiceDelegate? { get set }
 }
@@ -23,6 +25,9 @@ enum CommunicationError: Error {
 }
 
 class WifiManager: CommProtocol {
+    func scanForPeripherals() async throws {
+    }
+    
     let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "wifiManager")
 
     var obdDelegate: OBDServiceDelegate?
@@ -32,7 +37,7 @@ class WifiManager: CommProtocol {
 
     var tcp: NWConnection?
 
-    func connectAsync(timeout: TimeInterval) async throws {
+    func connectAsync(timeout: TimeInterval, peripheral: CBPeripheral? = nil) async throws {
         let host = NWEndpoint.Host("192.168.0.10")
         guard let port = NWEndpoint.Port("35000") else {
             throw CommunicationError.invalidData

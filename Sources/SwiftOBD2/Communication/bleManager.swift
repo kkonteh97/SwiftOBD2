@@ -229,21 +229,18 @@ class BLEManager: NSObject, CommProtocol {
         }
 
         switch characteristic {
-        case ecuReadCharacteristic:
-            processReceivedData(characteristicValue, completion: sendMessageCompletion)
-
-        default:
-            guard let responseString = String(data: characteristicValue, encoding: .utf8) else {
-                return
-            }
-            logger.info("Unknown characteristic: \(characteristic)\nResponse: \(responseString)")
+            case ecuReadCharacteristic:
+                processReceivedData(characteristicValue, completion: sendMessageCompletion)
+            default:
+                if let responseString = String(data: characteristicValue, encoding: .utf8) {
+                    logger.info("Unknown characteristic: \(characteristic)\nResponse: \(responseString)")
+                }
         }
     }
 
     func didFailToConnect(_: CBCentralManager, peripheral: CBPeripheral, error _: Error?) {
         logger.error("Failed to connect to peripheral: \(peripheral.name ?? "Unnamed")")
-        connectedPeripheral = nil
-        disconnectPeripheral()
+        resetConfigure()
     }
 
     func didDisconnect(_: CBCentralManager, peripheral: CBPeripheral, error _: Error?) {
@@ -252,10 +249,10 @@ class BLEManager: NSObject, CommProtocol {
     }
 
     func willRestoreState(_: CBCentralManager, dict: [String: Any]) {
-        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
+        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral], let peripheral = peripherals.first {
             logger.debug("Restoring peripheral: \(peripherals[0].name ?? "Unnamed")")
-            peripherals[0].delegate = self
-            connectedPeripheral = peripherals[0]
+            connectedPeripheral = peripheral
+            connectedPeripheral?.delegate = self
         }
     }
 
@@ -275,15 +272,17 @@ class BLEManager: NSObject, CommProtocol {
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             self.connectionCompletion = { peripheral, error in
-                if let _ = peripheral {
+                if peripheral != nil {
                     continuation.resume()
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 }
+
+                self.connectionCompletion = nil
             }
             connect(to: peripheral)
         }
-        connectionCompletion = nil
+        self.connectionCompletion = nil
     }
 
     /// Sends a message to the connected peripheral and returns the response.
@@ -296,7 +295,7 @@ class BLEManager: NSObject, CommProtocol {
     ///     `BLEManagerError.peripheralNotConnected` if the peripheral is not connected.
     ///     `BLEManagerError.timeout` if the operation times out.
     ///     `BLEManagerError.unknownError` if an unknown error occurs.
-    func sendCommand(_ command: String) async throws -> [String] {
+    func sendCommand(_ command: String, retries: Int = 3) async throws -> [String] {
         guard sendMessageCompletion == nil else {
             throw BLEManagerError.sendingMessagesInProgress
         }
@@ -361,11 +360,12 @@ class BLEManager: NSObject, CommProtocol {
     }
 
     func scanForPeripherals() async throws {
-        self.startScanning(nil)
-        // Wait 10 seconds for the scan to complete without blocking the main thread.
+        startScanning(nil)
         try await Task.sleep(nanoseconds: 10_000_000_000)
-        self.centralManager.stopScan()
+        stopScan()
     }
+
+    // MARK: - Utility Methods
 
     /// Cancels the current operation and throws a timeout error.
     func Timeout<R>(
@@ -398,8 +398,9 @@ class BLEManager: NSObject, CommProtocol {
         }
     }
 
-    func resetConfigure() {
+    private func resetConfigure() {
         ecuReadCharacteristic = nil
+        ecuWriteCharacteristic = nil
         connectedPeripheral = nil
         connectionState = .disconnected
     }

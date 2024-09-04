@@ -45,7 +45,7 @@ func bytesToInt(_ byteArray: Data) -> Int {
 //    }
 // }
 
-public enum PROTOCOL: String, Codable {
+public enum PROTOCOL: String, Codable, CaseIterable {
     case
         protocol1 = "1",
         protocol2 = "2",
@@ -106,63 +106,14 @@ public enum PROTOCOL: String, Codable {
     }
 
     var cmd: String {
-        switch self {
-        case .protocol1:
-            return "ATSP1"
-
-        case .protocol2:
-            return "ATSP2"
-
-        case .protocol3:
-            return "ATSP3"
-
-        case .protocol4:
-            return "ATSP4"
-
-        case .protocol5:
-            return "ATSP5"
-
-        case .protocol6:
-            return "ATSP6"
-
-        case .protocol7:
-            return "ATSP7"
-
-        case .protocol8:
-            return "ATSP8"
-
-        case .protocol9:
-            return "ATSP9"
-
-        case .protocolA:
-            return "ATSPA"
-
-        case .protocolB:
-            return "ATSPB"
-
-        case .protocolC:
-            return "ATSPC"
-
-        case .NONE:
-            return ""
-        }
+          return "ATSP\(self.rawValue)"
     }
 
     public static let asArray: [PROTOCOL] = [
-        protocol1,
-        protocol2,
-        protocol3,
-        protocol4,
-        protocol5,
-        protocol6,
-        protocol7,
-        protocol8,
-        protocol9,
-        protocolA,
-        protocolB,
-        protocolC,
-        NONE
-    ]
+       .protocol1, .protocol2, .protocol3, .protocol4, .protocol5,
+       .protocol6, .protocol7, .protocol8, .protocol9, .protocolA,
+       .protocolB, .protocolC, .NONE
+   ]
 }
 
 // dictionary of all the protocols

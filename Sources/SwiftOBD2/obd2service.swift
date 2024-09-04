@@ -93,7 +93,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Returns: Information about the connected vehicle (`OBDInfo`).
     /// - Throws: Errors if the vehicle initialization process fails.
     func initializeVehicle(_ preferedProtocol: PROTOCOL?) async throws -> OBDInfo {
-        let obd2info = try await elm327.setupVehicle(preferedProtocol: preferedProtocol)
+        let obd2info = try await elm327.setupVehicle(preferredProtocol: preferedProtocol)
         return obd2info
     }
 
@@ -165,7 +165,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Returns: measurement result
     /// - Throws: Errors that might occur during the request process.
     public func requestPIDs(_ commands: [OBDCommand], unit: MeasurementUnit) async throws -> [OBDCommand: MeasurementResult] {
-        let response = try await sendCommand("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined())
+        let response = try await sendCommandInternal("01" + commands.compactMap { $0.properties.command.dropFirst(2) }.joined(), retries: 10)
 
         guard let responseData = try elm327.canProtocol?.parse(response).first?.data else { return [:] }
 
@@ -185,7 +185,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///  - Throws: Errors that might occur during the request process.
     public func sendCommand(_ command: OBDCommand) async throws -> Result<DecodeResult, DecodeError> {
         do {
-            let response = try await sendCommand(command.properties.command)
+            let response = try await sendCommandInternal(command.properties.command, retries: 3)
             guard let responseData = try elm327.canProtocol?.parse(response).first?.data else {
                 return .failure(.noData)
             }
@@ -243,9 +243,9 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Parameter message: The raw command to send.
     /// - Returns: The raw response from the vehicle.
     /// - Throws: Errors that might occur during the request process.
-    public func sendCommand(_ message: String, withTimeoutSecs _: TimeInterval = 5) async throws -> [String] {
+    public func sendCommandInternal(_ message: String, retries: Int) async throws -> [String] {
         do {
-            return try await elm327.sendCommand(message)
+            return try await elm327.sendCommand(message, retries: retries)
         } catch {
             throw OBDServiceError.commandFailed(command: message, error: error)
         }

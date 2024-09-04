@@ -31,7 +31,7 @@ class MOCKComm: CommProtocol {
 
     var ecuSettings: MockECUSettings = .init()
 
-    func sendCommand(_ command: String) async throws -> [String] {
+    func sendCommand(_ command: String, retries: Int = 3) async throws -> [String] {
         logger.info("Sending command: \(command)")
         var header = ""
 

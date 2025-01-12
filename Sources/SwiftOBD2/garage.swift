@@ -10,7 +10,7 @@ import Foundation
 
 public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public static func == (lhs: Vehicle, rhs: Vehicle) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 
     public let id: Int
@@ -18,7 +18,7 @@ public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public var model: String
     public var year: String
     public var status: Status?
-    public var troubleCodes: [ECUID:[TroubleCode]]?
+    public var troubleCodes: [ECUID: [TroubleCode]]?
     public var obdinfo: OBDInfo?
 }
 
@@ -34,7 +34,7 @@ public class Garage: ObservableObject {
 
     public var currentVehicleId: Int {
         didSet {
-            if currentVehicle?.make != "Mock-BMW" && currentVehicle?.make != "Mock-Toyota" {
+            if currentVehicle?.make != "Mock-BMW", currentVehicle?.make != "Mock-Toyota" {
                 UserDefaults.standard.set(currentVehicleId, forKey: "currentCarId")
             }
         }
@@ -57,14 +57,15 @@ public class Garage: ObservableObject {
 
     func loadGarage() {
         if let data = UserDefaults.standard.data(forKey: "garageVehicles"),
-           let decodedVehicles = try? JSONDecoder().decode([Vehicle].self, from: data) {
+           let decodedVehicles = try? JSONDecoder().decode([Vehicle].self, from: data)
+        {
             garageVehicles = decodedVehicles
         } else {
             garageVehicles = []
         }
 
         // Determine the next available integer ID
-        if let maxId = garageVehicles.map({ $0.id }).max() {
+        if let maxId = garageVehicles.map(\.id).max() {
             nextId = maxId + 1
         }
 
@@ -100,7 +101,7 @@ public class Garage: ObservableObject {
         if car.id == currentVehicleId { // check if the deleted car was the current one
             currentVehicleId = garageVehicles.first?.id ?? 0 // make the first car in the garage as the current car
         }
-        if car.make != "Mock-BMW" && car.make != "Mock-Toyota" {
+        if car.make != "Mock-BMW", car.make != "Mock-Toyota" {
             saveGarageVehicles()
         }
     }
@@ -110,14 +111,14 @@ public class Garage: ObservableObject {
             garageVehicles[index] = vehicle
             currentVehicle = vehicle
         }
-        if vehicle.make != "Mock-BMW" && vehicle.make != "Mock-Toyota" {
+        if vehicle.make != "Mock-BMW", vehicle.make != "Mock-Toyota" {
             saveGarageVehicles()
         }
     }
 
     // get vehicle by id from garageVehicles
     func getVehicle(id: Int) -> Vehicle? {
-        return garageVehicles.first(where: { $0.id == id })
+        garageVehicles.first(where: { $0.id == id })
     }
 
     private func saveGarageVehicles() {
@@ -143,15 +144,14 @@ public class Garage: ObservableObject {
                                    year: "2015",
                                    obdinfo: OBDInfo(vin: "1234567890",
                                                     supportedPIDs: [OBDCommand.mode6(.MONITOR_O2_B1S1), OBDCommand.mode1(.speed), OBDCommand.mode1(.rpm), OBDCommand.mode1(.maf), .mode1(.throttlePos), .mode1(.coolantTemp), .mode1(.fuelLevel), OBDCommand.mode1(.fuelType), OBDCommand.mode1(.shortFuelTrim1), OBDCommand.mode1(.O2Bank1Sensor3), OBDCommand.mode1(.runTime), OBDCommand.mode1(.intakePressure), OBDCommand.mode1(.intakeTemp), OBDCommand.mode1(.timingAdvance), OBDCommand.mode1(.engineLoad)],
-                                                    obdProtocol: .protocol6, ecuMap: [0x01: .engine,0x02: .transmission])
-        )
+                                                    obdProtocol: .protocol6, ecuMap: [0x01: .engine, 0x02: .transmission]))
 
         let mockVehicle2 = Vehicle(id: 1, make: "Mock-Toyota", model: "Camry", year: "2019", obdinfo: OBDInfo(obdProtocol: PROTOCOL.protocol6))
 
         garageVehicles = [mockVehicle1, mockVehicle2]
         currentVehicle = mockVehicle1
 
-        if let maxId = garageVehicles.map({ $0.id }).max() {
+        if let maxId = garageVehicles.map(\.id).max() {
             nextId = maxId + 1
         }
     }

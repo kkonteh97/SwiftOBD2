@@ -67,7 +67,7 @@ public struct CommandProperties: Encodable {
         guard let decoderInstance = decoder.getDecoder() else {
             return .failure(.unsupportedDecoder)
         }
-        return decoderInstance.decode(data: data, unit: unit)
+        return decoderInstance.decode(data: data.dropFirst(), unit: unit)
     }
 }
 

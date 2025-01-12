@@ -217,9 +217,22 @@ public enum DecodeError: Error {
     case invalidData
     case noData
     case decodingFailed(reason: String)
+    case unsupportedDecoder
 }
 
-public enum Decoders: Equatable {
+protocol Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError>
+}
+
+public enum DecodeResult {
+    case stringResult(String)
+    case statusResult(Status)
+    case measurementResult(MeasurementResult)
+    case troubleCode([TroubleCode])
+    case measurementMonitor(Monitor)
+}
+
+public enum Decoders: Equatable, Encodable {
     case pid
     case status
     case singleDTC
@@ -254,419 +267,472 @@ public enum Decoders: Equatable {
     case encoded_string
     case none
 
-    func performDecode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
-        switch self {
-            case .pid:
-                return .failure(.decodingFailed(reason: "Not implemented"))
+    func getDecoder() -> Decoder? {
+            switch self {
             case .status:
-                return decodeStatus(data)
+                return StatusDecoder()
             case .temp:
-                return tempDecoder(data, unit: unit)
+                return TemperatureDecoder()
             case .percent:
-                return percentDecoder(data)
-            case .currentCentered:
-                return currentCenteredDecoder(data)
-            case .airStatus:
-                return currentCenteredDecoder(data)
-            case .singleDTC:
-                return singleDtcDecoder(data)
-            case .fuelStatus:
-                return  fuelStatusDecoder(data)
+                return PercentDecoder()
             case .percentCentered:
-                return percentCenteredDecoder(data)
+                return PercentCenteredDecoder()
+            case .currentCentered:
+                return CurrentCenteredDecoder()
+            case .airStatus:
+                return AirStatusDecoder()
+            case .singleDTC:
+                return SingleDTCDecoder()
+            case .fuelStatus:
+                return FuelStatusDecoder()
             case .fuelPressure:
-                return  fuelPressureDecoder(data)
+                return FuelPressureDecoder()
             case .pressure:
-                return  fuelPressureDecoder(data)
+                return PressureDecoder()
             case .timingAdvance:
-                return timingAdvanceDecoder(data)
+                return TimingAdvanceDecoder()
             case .obdCompliance:
-                return obdComplianceDecoder(data)
+                return OBDComplianceDecoder()
             case .o2SensorsAlt:
-                return o2SensorsAltDecoder(data)
+                return O2SensorsAltDecoder()
             case .o2Sensors:
-                return o2SensorsDecoder(data)
+                return O2SensorsDecoder()
             case .sensorVoltage:
-                return voltageDecoder(data)
-            case .auxInputStatus:
-                return .failure(.decodingFailed(reason: "Not implemented"))
+                return SensorVoltageDecoder()
             case .sensorVoltageBig:
-                return sensorVoltageBigDecoder(data)
+                return SensorVoltageBigDecoder()
             case .evapPressure:
-                return evapPressureDecoder(data)
+                return EvapPressureDecoder()
             case .absoluteLoad:
-                return absoluteLoadDecoder(data)
+                return AbsoluteLoadDecoder()
             case .maxMaf:
-                return maxMafDecoder(data)
+                return MaxMafDecoder()
             case .fuelType:
-                return fuelTypeDecoder(data)
+                return FuelTypeDecoder()
             case .absEvapPressure:
-                return absEvapPressureDecoder(data)
+                return AbsEvapPressureDecoder()
             case .evapPressureAlt:
-                return evapPressureAltDecoder(data)
+                return EvapPressureAltDecoder()
             case .injectTiming:
-                return injectTimingDecoder(data)
+                return InjectTimingDecoder()
             case .dtc:
-                return dtcDecoder(data)
+                return DTCDecoder()
             case .fuelRate:
-                return fuelRateDecoder(data)
+                return FuelRateDecoder()
             case .monitor:
-                return decodeMonitor(data)
-            case .count:
-                return .failure(.decodingFailed(reason: "Not implemented"))
-            case .cvn:
-                return .failure(.decodingFailed(reason: "Not implemented"))
+                return MonitorDecoder()
             case .encoded_string:
-                return encodedStringDecoder(data)
-            case .none:
-                return .failure(.decodingFailed(reason: "Not implemented"))
+                return StringDecoder()
             case .uas(let id):
-                return decodeUAS(data, id: id, unit: unit)
+                let decoder = UASDecoder(id: id)
+                return decoder
+            default:
+                return nil
+            }
         }
-    }
 }
 
-func encodedStringDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    guard var string = String(bytes: data, encoding: .utf8) else {
-        return .failure(.decodingFailed(reason: "Failed to decode string"))
-    }
+struct MonitorDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        var databytes = Data(data)
 
-    string = string
-        .replacingOccurrences(of: "[^a-zA-Z0-9]",
-                              with: "",
-                              options: .regularExpression)
+        let mon = Monitor()
 
-    return .success(.stringResult(string))
-}
+        // test that we got the right number of bytes
+        let extra_bytes = databytes.count % 9
 
-func decodeMonitor(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var databytes = Data(data)
-
-    let mon = Monitor()
-
-    // test that we got the right number of bytes
-    let extra_bytes = databytes.count % 9
-
-    if extra_bytes != 0 {
-//        print("Encountered monitor message with non-multiple of 9 bytes. Truncating...", databytes.count, extra_bytes)
-        databytes = databytes.dropLast(extra_bytes)
-    }
-
-    // look at data in blocks of 9 bytes (one test result)
-    for i in stride(from: 0, to: databytes.count, by: 9) {
-        let subdata = databytes.subdata(in: i ..< i + 9)
-        //        print("\nSubdata: ", subdata.compactMap {String(format: "%02x", $0)})
-        let test = parse_monitor_test(subdata)
-        if let test = test, let tid = test.tid {
-            //            print(test.name ?? "")
-            //            print(test.desc ?? "")
-            //            print("Value: ", test.value ?? "No value")
-            //            print("Min: ", test.min ?? "No value")
-            //            print("Max: ", test.max ?? "No value")
-            //            print(test.description)
-            mon.tests[tid] = test
+        if extra_bytes != 0 {
+    //        print("Encountered monitor message with non-multiple of 9 bytes. Truncating...", databytes.count, extra_bytes)
+            databytes = databytes.dropLast(extra_bytes)
         }
+
+        // look at data in blocks of 9 bytes (one test result)
+        for i in stride(from: 0, to: databytes.count, by: 9) {
+            let subdata = databytes.subdata(in: i ..< i + 9)
+            //        print("\nSubdata: ", subdata.compactMap {String(format: "%02x", $0)})
+            let test = parse_monitor_test(subdata)
+            if let test = test, let tid = test.tid {
+                //            print(test.name ?? "")
+                //            print(test.desc ?? "")
+                //            print("Value: ", test.value ?? "No value")
+                //            print("Min: ", test.min ?? "No value")
+                //            print("Max: ", test.max ?? "No value")
+                //            print(test.description)
+                mon.tests[tid] = test
+            }
+        }
+        return .success(.measurementMonitor(mon))
     }
-    return .success(.measurementMonitor(mon))
-}
 
-func decodeUAS(_ data: Data, id: UInt8?, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-    guard let id = id, let uas = uasIDS[id] else {
-        return .failure(.invalidData)
-    }
-    return .success((.measurementResult(uas.decode(bytes: data, unit))))
-}
+    func parse_monitor_test(_ data: Data) -> MonitorTest? {
+        var test = MonitorTest()
 
-func fuelRateDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = Double(bytesToInt(data)) * 0.05
-    return .success((.measurementResult(MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers))))
-}
+        let tid = data[1]
+        let cid = data[2]
 
-func injectTimingDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = (Double(bytesToInt(data)) - 26880) / 128
-    return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.degrees))))
-}
-
-// -32767 to 32768 Pa
-func evapPressureAltDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = Double(bytesToInt(data)) - 32767
-    return .success((.measurementResult(MeasurementResult(value: value, unit: Unit.Pascal))))
-}
-
-func absEvapPressureDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = Double(bytesToInt(data)) / 200
-    return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
-}
-
-func fuelTypeDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let i = data[0]
-    var value: String?
-    if i < FuelTypes.count {
-        value = FuelTypes[Int(i)]
-    }
-    guard let value = value else {
-        return .failure(.invalidData)
-    }
-    return .success(.stringResult((value)))
-}
-
-func maxMafDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = data[0] * 10
-    return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond))))
-}
-
-func absoluteLoadDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let value = (bytesToInt(data) * 100) / 255
-    return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.percent))))
-}
-
-func evapPressureDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    let a = twosComp(Int(data[0]), length: 8)
-    let b = twosComp(Int(data[1]), length: 8)
-
-    let value = ((Double(a) * 256.0) + Double(b)) / 4.0
-    return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
-}
-
-func auxInputStatus(_ data: Data) -> Bool? {
-    return ((data[0] >> 7) & 1) == 1
-}
-
-func o2SensorsDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let bits = BitArray(data: data)
-    //        return (
-    //                (),  # bank 0 is invalid
-    //                tuple(bits[:2]),  # bank 1
-    //                tuple(bits[2:4]),  # bank 2
-    //                tuple(bits[4:6]),  # bank 3
-    //                tuple(bits[6:]),  # bank 4
-    //            )
-
-    let bank1 = Array(bits.binaryArray[0 ..< 4])
-    let bank2 = Array(bits.binaryArray[4 ..< 8])
-
-    return .success(.stringResult("\(bank1), \(bank2)"))
-}
-
-func o2SensorsAltDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let bits = BitArray(data: data)
-    //        return (
-    //                (),  # bank 0 is invalid
-    //                tuple(bits[:2]),  # bank 1
-    //                tuple(bits[2:4]),  # bank 2
-    //                tuple(bits[4:6]),  # bank 3
-    //                tuple(bits[6:]),  # bank 4
-    //            )
-
-    let bank1 = Array(bits.binaryArray[0 ..< 2])
-    let bank2 = Array(bits.binaryArray[2 ..< 4])
-    let bank3 = Array(bits.binaryArray[4 ..< 6])
-    let bank4 = Array(bits.binaryArray[6 ..< 8])
-
-    return .success(.stringResult("\(bank1), \(bank2), \(bank3), \(bank4)"))
-}
-
-func obdComplianceDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let i = data[1]
-
-    if i < OBD_COMPLIANCE.count {
-        return .success(.stringResult((OBD_COMPLIANCE[Int(i)])))
-    } else {
-        return .failure(.decodingFailed(reason: "Invalid response for OBD compliance (no table entry)"))
-    }
-}
-
-func fuelStatusDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let bits = BitArray(data: data)
-    var status_1: String?
-    var status_2: String?
-
-    let highBits = Array(bits.binaryArray[0 ..< 8])
-    let lowBits = Array(bits.binaryArray[8 ..< 16])
-
-    if highBits.filter({ $0 == 1 }).count == 1, let index = highBits.firstIndex(of: 1) {
-        if 7 - index < FUEL_STATUS.count {
-            status_1 = FUEL_STATUS[7 - index]
+        if let testInfo = TestIds[tid] {
+            test.name = testInfo.0
+            test.desc = testInfo.1
         } else {
-            print("Invalid response for fuel status (high bits set)")
+            print("Encountered unknown Test ID: ", String(format: "%02x"))
+            test.name = "TID: $\(String(format: "%02x", tid)) CID: $\(String(format: "%02x", cid))"
+            test.desc = "Unknown"
         }
-    } else {
-        print("Invalid response for fuel status (multiple/no bits set)")
-    }
 
-    if lowBits.filter({ $0 == 1 }).count == 1, let index = lowBits.firstIndex(of: 1) {
-        if 7 - index < FUEL_STATUS.count {
-            status_2 = FUEL_STATUS[7 - index]
-        } else {
-            print("Invalid response for fuel status (low bits set)")
+        guard let uas = uasIDS[cid] else {
+            print("Encountered Unknown Units and Scaling ID: ", String(format: "%02x", cid))
+            return nil
         }
-    } else {
-        print("Invalid response for fuel status (multiple/no bits set in low bits)")
-    }
 
-    if let status_1 = status_1, let status_2 = status_2 {
-        return .success(.stringResult("Status 1: \(status_1), Status 2: \(status_2)"))
-    } else if let status = status_1 ?? status_2 {
-        return .success(.stringResult("Status: \(status)"))
-    } else {
-        return .failure(.decodingFailed(reason: "No valid status found."))
+        let valueRange = data[3 ... 4]
+        let minRange = data[5 ... 6]
+        let maxRange = data[7...]
+
+        test.tid = tid
+        test.value = uas.decode(bytes: valueRange)
+        test.min = uas.decode(bytes: minRange).value
+        test.max = uas.decode(bytes: maxRange).value
+        return test
     }
 }
 
-// 0 to 1.275 volts
-func voltageDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    guard data.count == 2 else {
+struct FuelRateDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = Double(bytesToInt(data)) * 0.05
+        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers))))
+    }
+}
+
+struct DTCDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        // converts a frame of 2-byte DTCs into a list of DTCs
+        let data = Data(data)
+        var codes: [TroubleCode] = []
+        // send data to parceDtc 2 byte at a time
+        for n in stride(from: 0, to: data.count - 1, by: 2) {
+            let endIndex = min(n + 1, data.count - 1)
+            guard let dtc = parseDTC(data[n ... endIndex]) else {
+                continue
+            }
+            codes.append(dtc)
+        }
+        return .success(.troubleCode(codes))
+    }
+}
+
+struct InjectTimingDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = (Double(bytesToInt(data)) - 26880) / 128
+        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.degrees))))
+    }
+}
+
+struct EvapPressureAltDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = Double(bytesToInt(data)) - 32767
+        return .success((.measurementResult(MeasurementResult(value: value, unit: Unit.Pascal))))
+    }
+}
+
+struct AbsEvapPressureDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = Double(bytesToInt(data)) / 200
+        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
+    }
+}
+
+struct FuelTypeDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let i = data[0]
+        var value: String?
+        if i < FuelTypes.count {
+            value = FuelTypes[Int(i)]
+        }
+        guard let value = value else {
+            return .failure(.invalidData)
+        }
+        return .success(.stringResult((value)))
+    }
+}
+
+struct MaxMafDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = data[0] * 10
+        return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond))))
+    }
+}
+
+struct AbsoluteLoadDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = (bytesToInt(data) * 100) / 255
+        return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.percent))))
+    }
+}
+
+
+struct EvapPressureDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let a = twosComp(Int(data[0]), length: 8)
+        let b = twosComp(Int(data[1]), length: 8)
+
+        let value = ((Double(a) * 256.0) + Double(b)) / 4.0
+        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
+    }
+}
+
+struct SensorVoltageBigDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = bytesToInt(data[2 ..< 4])
+        let voltage = (Double(value) * 8.0) / 65535
+        return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
+    }
+}
+
+struct SensorVoltageDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count == 2 else {
+            return .failure(.invalidData)
+        }
+        let voltage = Double(data.first ?? 0) / 200
+        return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
+    }
+}
+
+struct O2SensorsDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let bits = BitArray(data: data)
+        //        return (
+        //                (),  # bank 0 is invalid
+        //                tuple(bits[:2]),  # bank 1
+        //                tuple(bits[2:4]),  # bank 2
+        //                tuple(bits[4:6]),  # bank 3
+        //                tuple(bits[6:]),  # bank 4
+        //            )
+
+        let bank1 = Array(bits.binaryArray[0 ..< 4])
+        let bank2 = Array(bits.binaryArray[4 ..< 8])
+
+        return .success(.stringResult("\(bank1), \(bank2)"))
+    }
+}
+
+struct O2SensorsAltDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let bits = BitArray(data: data)
+        //        return (
+        //                (),  # bank 0 is invalid
+        //                tuple(bits[:2]),  # bank 1
+        //                tuple(bits[2:4]),  # bank 2
+        //                tuple(bits[4:6]),  # bank 3
+        //                tuple(bits[6:]),  # bank 4
+        //            )
+
+        let bank1 = Array(bits.binaryArray[0 ..< 2])
+        let bank2 = Array(bits.binaryArray[2 ..< 4])
+        let bank3 = Array(bits.binaryArray[4 ..< 6])
+        let bank4 = Array(bits.binaryArray[6 ..< 8])
+
+        return .success(.stringResult("\(bank1), \(bank2), \(bank3), \(bank4)"))
+    }
+}
+
+
+struct OBDComplianceDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let i = data[1]
+
+        if i < OBD_COMPLIANCE.count {
+            return .success(.stringResult((OBD_COMPLIANCE[Int(i)])))
+        } else {
+            return .failure(.decodingFailed(reason: "Invalid response for OBD compliance (no table entry)"))
+        }
+    }
+}
+
+struct TimingAdvanceDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = Double(data.first ?? 0) / 2.0 - 64.0
+        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitAngle.degrees)))
+    }
+}
+
+struct PressureDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = data.first ?? 0
+        return .success(.measurementResult(MeasurementResult(value: Double(value), unit: UnitPressure.kilopascals)))
+    }
+}
+
+
+struct FuelPressureDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        var value = Double(data[0])
+        value = value * 3
+        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals)))
+    }
+}
+
+struct AirStatusDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let bits = BitArray(data: data).binaryArray
+
+        let numSet = bits.filter { $0 == 1 }.count
+        if numSet == 1 {
+            let index = 7 - bits.firstIndex(of: 1)!
+            return .success(.measurementResult(MeasurementResult(value: Double(index), unit: UnitElectricCurrent.amperes)))
+        }
         return .failure(.invalidData)
     }
-    let voltage = Double(data.first ?? 0) / 200
-    return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
 }
 
-func dtcDecoder(_ data: Data) -> Result<DecodeResult, DecodeError>  {
-    // converts a frame of 2-byte DTCs into a list of DTCs
-    let data = Data(data)
-    var codes: [TroubleCode] = []
-    // send data to parceDtc 2 byte at a time
-    for n in stride(from: 0, to: data.count - 1, by: 2) {
-        let endIndex = min(n + 1, data.count - 1)
-        guard let dtc = parseDTC(data[n ... endIndex]) else {
-            continue
+struct FuelStatusDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let bits = BitArray(data: data)
+        var status_1: String?
+        var status_2: String?
+
+        let highBits = Array(bits.binaryArray[0 ..< 8])
+        let lowBits = Array(bits.binaryArray[8 ..< 16])
+
+        if highBits.filter({ $0 == 1 }).count == 1, let index = highBits.firstIndex(of: 1) {
+            if 7 - index < FUEL_STATUS.count {
+                status_1 = FUEL_STATUS[7 - index]
+            } else {
+                print("Invalid response for fuel status (high bits set)")
+            }
+        } else {
+            print("Invalid response for fuel status (multiple/no bits set)")
         }
-        codes.append(dtc)
+
+        if lowBits.filter({ $0 == 1 }).count == 1, let index = lowBits.firstIndex(of: 1) {
+            if 7 - index < FUEL_STATUS.count {
+                status_2 = FUEL_STATUS[7 - index]
+            } else {
+                print("Invalid response for fuel status (low bits set)")
+            }
+        } else {
+            print("Invalid response for fuel status (multiple/no bits set in low bits)")
+        }
+
+        if let status_1 = status_1, let status_2 = status_2 {
+            return .success(.stringResult("Status 1: \(status_1), Status 2: \(status_2)"))
+        } else if let status = status_1 ?? status_2 {
+            return .success(.stringResult("Status: \(status)"))
+        } else {
+            return .failure(.decodingFailed(reason: "No valid status found."))
+        }
     }
-    return .success(.troubleCode(codes))
 }
 
-func singleDtcDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let troubleCode = parseDTC(data)
-    return .success(.troubleCode(troubleCode.map { [$0] } ?? []))
-}
-
-func percentDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var value = Double(data.first ?? 0)
-    value = value * 100.0 / 255.0
-    return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
-}
-
-func percentCenteredDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var value = Double(data.first ?? 0)
-    value = (value - 128) * 100.0 / 128.0
-    return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
-}
-
-// -128 to 128 mA
-func currentCenteredDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var value = Double(bytesToInt(data.dropFirst(2)))
-    value = (value / 256.0) - 128.0
-    return .success(.measurementResult(MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes)))
-}
-
-// 0 to 1.275 volts
-func sensorVoltageDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let voltage = Double(data[0]) / 200
-    return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
-}
-
-func sensorVoltageBigDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let value = bytesToInt(data[2 ..< 4])
-    let voltage = (Double(value) * 8.0) / 65535
-    return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
-}
-
-// 0 to 765 kPa
-func fuelPressureDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    var value = Double(data[0])
-    value = value * 3
-    return .success(.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals)))
-}
-
-// 0 to 255 kPa
-func pressureDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let value = data.first ?? 0
-    return .success(.measurementResult(MeasurementResult(value: Double(value), unit: UnitPressure.kilopascals)))
-}
-
-func airStatusDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let bits = BitArray(data: data).binaryArray
-
-    let numSet = bits.filter { $0 == 1 }.count
-    if numSet == 1 {
-        let index = 7 - bits.firstIndex(of: 1)!
-        return .success(.measurementResult(MeasurementResult(value: Double(index), unit: UnitElectricCurrent.amperes)))
+struct SingleDTCDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let troubleCode = parseDTC(data)
+        return .success(.troubleCode(troubleCode.map { [$0] } ?? []))
     }
-    return .failure(.invalidData)
 }
 
-func tempDecoder(_ data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-    let value = Double(bytesToInt(data)) - 40.0
-    return .success(.measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius)))
-}
-
-func timingAdvanceDecoder(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let value = Double(data.first ?? 0) / 2.0 - 64.0
-    return .success(.measurementResult(MeasurementResult(value: value, unit: UnitAngle.degrees)))
-}
-
-func decodeStatus(_ data: Data) -> Result<DecodeResult, DecodeError> {
-    let IGNITIONTYPE = ["Spark", "Compression"]
-    //            ┌Components not ready
-    //            |┌Fuel not ready
-    //            ||┌Misfire not ready
-    //            |||┌Spark vs. Compression
-    //            ||||┌Components supported
-    //            |||||┌Fuel supported
-    //  ┌MIL      ||||||┌Misfire supported
-    //  |         |||||||
-    //  10000011 00000111 11111111 00000000
-    //  00000000 00000111 11100101 00000000
-    //  10111110 00011111 10101000 00010011
-    //   [# DTC] X        [supprt] [~ready]
-
-    // convert to binaryarray
-    let bits = BitArray(data: data)
-
-    var output = Status()
-    output.MIL = bits.binaryArray[0] == 1
-    output.dtcCount = bits.value(at: 1 ..< 8)
-    output.ignitionType = IGNITIONTYPE[bits.binaryArray[12]]
-
-    // load the 3 base tests that are always present
-
-    for (index, name) in baseTests.reversed().enumerated() {
-        processBaseTest(name, index, bits, &output)
+struct CurrentCenteredDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        var value = Double(bytesToInt(data.dropFirst(2)))
+        value = (value / 256.0) - 128.0
+        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes)))
     }
-    return .success(.statusResult(output))
 }
 
-func parse_monitor_test(_ data: Data) -> MonitorTest? {
-    var test = MonitorTest()
+struct PercentCenteredDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        var value = Double(data.first ?? 0)
+        value = (value - 128) * 100.0 / 128.0
+        return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
+    }
+}
 
-    let tid = data[1]
-    let cid = data[2]
+struct PercentDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        var value = Double(data.first ?? 0)
+        value = value * 100.0 / 255.0
+        return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
+    }
+}
 
-    if let testInfo = TestIds[tid] {
-        test.name = testInfo.0
-        test.desc = testInfo.1
-    } else {
-        print("Encountered unknown Test ID: ", String(format: "%02x"))
-        test.name = "TID: $\(String(format: "%02x", tid)) CID: $\(String(format: "%02x", cid))"
-        test.desc = "Unknown"
+struct TemperatureDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let value = Double(bytesToInt(data)) - 40.0
+        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius)))
+    }
+}
+
+struct StringDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard var string = String(bytes: data, encoding: .utf8) else {
+            return .failure(.decodingFailed(reason: "Failed to decode string"))
+        }
+
+        string = string
+            .replacingOccurrences(of: "[^a-zA-Z0-9]",
+                                  with: "",
+                                  options: .regularExpression)
+
+        return .success(.stringResult(string))
+    }
+}
+
+struct UASDecoder: Decoder {
+    let id: UInt8
+
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard let uas = uasIDS[id] else {
+            return .failure(.invalidData)
+        }
+        return .success((.measurementResult(uas.decode(bytes: data, unit))))
+    }
+}
+
+struct StatusDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        let IGNITIONTYPE = ["Spark", "Compression"]
+        //            ┌Components not ready
+        //            |┌Fuel not ready
+        //            ||┌Misfire not ready
+        //            |||┌Spark vs. Compression
+        //            ||||┌Components supported
+        //            |||||┌Fuel supported
+        //  ┌MIL      ||||||┌Misfire supported
+        //  |         |||||||
+        //  10000011 00000111 11111111 00000000
+        //  00000000 00000111 11100101 00000000
+        //  10111110 00011111 10101000 00010011
+        //   [# DTC] X        [supprt] [~ready]
+
+        // convert to binaryarray
+        let bits = BitArray(data: data)
+
+        var output = Status()
+        output.MIL = bits.binaryArray[0] == 1
+        output.dtcCount = bits.value(at: 1 ..< 8)
+        output.ignitionType = IGNITIONTYPE[bits.binaryArray[12]]
+
+        // load the 3 base tests that are always present
+
+        for (index, name) in baseTests.reversed().enumerated() {
+            processBaseTest(name, index, bits, &output)
+        }
+        return .success(.statusResult(output))
     }
 
-    guard let uas = uasIDS[cid] else {
-        print("Encountered Unknown Units and Scaling ID: ", String(format: "%02x", cid))
-        return nil
+    func processBaseTest(_ testName: String, _ index: Int, _ bits: BitArray, _ output: inout Status) {
+        let test = StatusTest(testName, bits.binaryArray[13 + index] != 0, bits.binaryArray[9 + index] == 0)
+        switch testName {
+        case "MISFIRE_MONITORING":
+            output.misfireMonitoring = test
+        case "FUEL_SYSTEM_MONITORING":
+            output.fuelSystemMonitoring = test
+        case "COMPONENT_MONITORING":
+            output.componentMonitoring = test
+        default:
+            break
+        }
     }
-
-    let valueRange = data[3 ... 4]
-    let minRange = data[5 ... 6]
-    let maxRange = data[7...]
-
-    test.tid = tid
-    test.value = uas.decode(bytes: valueRange)
-    test.min = uas.decode(bytes: minRange).value
-    test.max = uas.decode(bytes: maxRange).value
-    return test
 }
 
 func parseDTC(_ data: Data) -> TroubleCode? {
@@ -687,20 +753,6 @@ func parseDTC(_ data: Data) -> TroubleCode? {
     // pull description from the DTCs array
 
     return TroubleCode(code: dtc, description: codes[dtc] ?? "No description available.")
-}
-
-func processBaseTest(_ testName: String, _ index: Int, _ bits: BitArray, _ output: inout Status) {
-    let test = StatusTest(testName, bits.binaryArray[13 + index] != 0, bits.binaryArray[9 + index] == 0)
-    switch testName {
-    case "MISFIRE_MONITORING":
-        output.misfireMonitoring = test
-    case "FUEL_SYSTEM_MONITORING":
-        output.fuelSystemMonitoring = test
-    case "COMPONENT_MONITORING":
-        output.componentMonitoring = test
-    default:
-        break
-    }
 }
 
 public class Monitor {

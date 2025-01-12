@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  protocol_legacy.swift
 //
 //
 //  Created by kemo konteh on 5/15/24.
@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 
 struct FramesByECU {
-  let txID: ECUID
+    let txID: ECUID
     var frames: [LegacyFrame]
 }
 
@@ -20,10 +20,10 @@ public struct LegacyParcer {
     public init(_ lines: [String]) throws {
         let obdLines = lines
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
+            .filter(\.isHex)
 
         frames = try obdLines.compactMap {
-            return try LegacyFrame(raw: $0)
+            try LegacyFrame(raw: $0)
         }
 
         let framesByECU = Dictionary(grouping: frames) { $0.txID }
@@ -44,21 +44,19 @@ struct LegacyMessage: MessageProtocol {
 //            return nil
 //        }
         self.frames = frames
-        self.ecu = frames.first?.txID ?? .unknown
+        ecu = frames.first?.txID ?? .unknown
 
         switch frames.count {
         case 1:
-            self.data = try parseSingleFrameMessage(frames)
+            data = try parseSingleFrameMessage(frames)
         case 2...:
-            self.data = try parseMultiFrameMessage(frames)
+            data = try parseMultiFrameMessage(frames)
         default:
             throw ParserError.error("Invalid frame count")
         }
-
     }
 
     private func parseSingleFrameMessage(_ frames: [LegacyFrame]) throws -> Data {
-
         guard let frame = frames.first else { // Pre-validate the length
             throw ParserError.error("Frame validation failed")
         }
@@ -137,7 +135,6 @@ struct LegacyMessage: MessageProtocol {
 //    }
 }
 
-
 struct LegacyFrame {
     var raw: String
     var data = Data()
@@ -147,7 +144,7 @@ struct LegacyFrame {
 
     init(raw: String) throws {
         self.raw = raw
-        var rawData = raw
+        let rawData = raw
 
         let dataBytes = rawData.hexBytes
 
@@ -158,7 +155,7 @@ struct LegacyFrame {
 
         priority = dataBytes[0]
         rxID = dataBytes[1]
-        self.txID = ECUID(rawValue: dataBytes[2] & 0x07) ?? .unknown
+        txID = ECUID(rawValue: dataBytes[2] & 0x07) ?? .unknown
     }
 }
 
@@ -171,7 +168,7 @@ class SAE_J1850_PWM: CANProtocol {
     let elmID = "1"
     let name = "SAE J1850 PWM"
     func parse(_ lines: [String]) throws -> [MessageProtocol] {
-        return try parseLegacy(lines)
+        try parseLegacy(lines)
     }
 }
 
@@ -179,7 +176,7 @@ class SAE_J1850_VPW: CANProtocol {
     let elmID = "2"
     let name = "SAE J1850 VPW"
     func parse(_ lines: [String]) throws -> [MessageProtocol] {
-        return try parseLegacy(lines)
+        try parseLegacy(lines)
     }
 }
 
@@ -187,7 +184,7 @@ class ISO_9141_2: CANProtocol {
     let elmID = "3"
     let name = "ISO 9141-2"
     func parse(_ lines: [String]) throws -> [MessageProtocol] {
-        return try parseLegacy(lines)
+        try parseLegacy(lines)
     }
 }
 
@@ -195,7 +192,7 @@ class ISO_14230_4_KWP_5Baud: CANProtocol {
     let elmID = "4"
     let name = "ISO 14230-4 KWP (5 baud init)"
     func parse(_ lines: [String]) throws -> [MessageProtocol] {
-        return try parseLegacy(lines)
+        try parseLegacy(lines)
     }
 }
 
@@ -205,6 +202,6 @@ public class ISO_14230_4_KWP_Fast: CANProtocol {
     public init() {}
 
     public func parse(_ lines: [String]) throws -> [MessageProtocol] {
-        return try parseLegacy(lines)
+        try parseLegacy(lines)
     }
 }

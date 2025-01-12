@@ -42,7 +42,7 @@ public struct CANParser {
     public init(_ lines: [String], idBits: Int) throws {
         let obdLines = lines
             .map { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
+            .filter(\.isHex)
 
         frames = try obdLines.compactMap { try Frame(raw: $0, idBits: idBits) }
 
@@ -57,26 +57,25 @@ public struct Message: MessageProtocol {
     public var data: Data?
 
     public var ecu: ECUID {
-        return frames.first?.txID ?? .unknown
+        frames.first?.txID ?? .unknown
     }
 
     init(frames: [Frame]) throws {
         self.frames = frames
         switch frames.count {
         case 1:
-            self.data = try parseSingleFrameMessage(frames)
+            data = try parseSingleFrameMessage(frames)
         case 2...:
-            self.data = try parseMultiFrameMessage(frames)
+            data = try parseMultiFrameMessage(frames)
         default:
             throw ParserError.error("Invalid frame count")
         }
     }
 
     private func parseSingleFrameMessage(_ frames: [Frame]) throws -> Data {
-
         guard let frame = frames.first, frame.type == .singleFrame,
               let dataLen = frame.dataLen, dataLen > 0,
-                frame.data.count >= dataLen + 1
+              frame.data.count >= dataLen + 1
         else { // Pre-validate the length
             throw ParserError.error("Frame validation failed")
         }
@@ -133,7 +132,7 @@ struct Frame {
         data = Data(dataBytes.dropFirst(4))
 
         guard dataBytes.count >= 6, dataBytes.count <= 12 else {
-            print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " ") )
+            print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
             throw ParserError.error("Invalid frame size")
         }
 
@@ -147,7 +146,7 @@ struct Frame {
         priority = dataBytes[2] & 0x0F
         addrMode = dataBytes[3] & 0xF0
         rxID = dataBytes[2]
-        self.txID = ECUID(rawValue: dataBytes[3] & 0x07) ?? .unknown
+        txID = ECUID(rawValue: dataBytes[3] & 0x07) ?? .unknown
         self.type = type
 
         switch type {

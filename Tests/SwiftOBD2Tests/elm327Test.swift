@@ -35,7 +35,7 @@ final class ELM327Test: XCTestCase {
         Task {
             // When
             do {
-                let obdInfo = try await sut.setupVehicle(preferedProtocol: nil)
+                let obdInfo = try await sut.setupVehicle(preferredProtocol: nil)
                 XCTAssertEqual(obdInfo.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: obdInfo.obdProtocol))")
 //                XCTAssertEqual(sut.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: sut.obdProtocol))")
                 exp.fulfill()

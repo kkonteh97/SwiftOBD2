@@ -7,6 +7,14 @@
 
 import Foundation
 
+public enum DecodeResult {
+    case stringResult(String)
+    case statusResult(Status)
+    case measurementResult(MeasurementResult)
+    case troubleCode([TroubleCode])
+    case measurementMonitor(Monitor)
+}
+
 public extension DecodeResult {
 //    var stringResult: String? {
 //        if case let .stringResult(res) = self { return res as String }
@@ -59,15 +67,8 @@ public struct CommandProperties: Encodable {
         self.minValue = minValue
     }
 
-//    public func decode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
-//        return decoder.performDecode(data: data.dropFirst(), unit: unit)
-//    }
-
-    func decode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
-        guard let decoderInstance = decoder.getDecoder() else {
-            return .failure(.unsupportedDecoder)
-        }
-        return decoderInstance.decode(data: data, unit: unit)
+    public func decode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
+        return decoder.performDecode(data: data.dropFirst(), unit: unit)
     }
 }
 
@@ -374,8 +375,8 @@ public enum OBDCommand: Codable, Hashable, Comparable {
 
     static public var allCommands: [OBDCommand] = {
         var commands: [OBDCommand] = []
-        for command in OBDCommand.General.allCases {
-            commands.append(.general(command))
+        OBDCommand.General.allCases.map {
+            commands.append(.general($0))
         }
 
         for command in OBDCommand.Mode1.allCases {

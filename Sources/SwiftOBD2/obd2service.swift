@@ -12,6 +12,29 @@ public protocol OBDServiceDelegate: AnyObject {
     func connectionStateChanged(state: ConnectionState)
 }
 
+struct Command: Codable {
+    var bytes: Int
+    var command: String
+    var decoder: String
+    var description: String
+    var live: Bool
+    var maxValue: Int
+    var minValue: Int
+}
+
+public class ConfigurationService {
+    static var shared = ConfigurationService()
+    var connectionType: ConnectionType {
+        get {
+            let rawValue = UserDefaults.standard.string(forKey: "connectionType") ?? "Bluetooth"
+            return ConnectionType(rawValue: rawValue) ?? .bluetooth
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "connectionType")
+        }
+    }
+}
+
 /// A class that provides an interface to the ELM327 OBD2 adapter and the vehicle.
 ///
 /// - Key Responsibilities:
@@ -20,17 +43,16 @@ public protocol OBDServiceDelegate: AnyObject {
 ///   - Providing information about the vehicle.
 ///   - Managing the connection state.
 public class OBDService: ObservableObject, OBDServiceDelegate {
-    @Published public  var connectionState: ConnectionState = .disconnected
-    @Published public  var connectionType: ConnectionType {
+    @Published public private(set) var connectionState: ConnectionState = .disconnected
+    @Published public private(set) var isScanning: Bool = false
+    @Published public private(set) var peripherals: [CBPeripheral] = []
+    @Published public private(set) var connectedPeripheral: CBPeripheral?
+    @Published public var connectionType: ConnectionType {
         didSet {
-            self.switchConnectionType(connectionType)
-            UserDefaults.standard.set(connectionType.rawValue, forKey: "connectionType")
+            switchConnectionType(connectionType)
+            ConfigurationService.shared.connectionType = connectionType
         }
     }
-
-    @Published public  var isScanning: Bool = false
-    @Published public  var peripherals: [CBPeripheral] = []
-    @Published public  var connectedPeripheral: CBPeripheral?
 
     /// The internal ELM327 object responsible for direct adapter interaction.
     private var elm327: ELM327
@@ -40,18 +62,20 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// Initializes the OBDService object.
     ///
     /// - Parameter connectionType: The desired connection type (default is Bluetooth).
+    ///
+    ///
     public init(connectionType: ConnectionType = .bluetooth) {
         self.connectionType = connectionType
-        #if targetEnvironment(simulator)
-            elm327 = ELM327(comm: MOCKComm())
-        #else
+#if targetEnvironment(simulator)
+        elm327 = ELM327(comm: MOCKComm())
+#else
         switch connectionType {
         case .bluetooth:
             let bleManager = BLEManager()
             elm327 = ELM327(comm: bleManager)
             bleManager.peripheralPublisher
                 .sink { [weak self] peripheral in
-                  self?.peripherals.append(peripheral)
+                    self?.peripherals.append(peripheral)
                 }
                 .store(in: &cancellables)
         case .wifi:
@@ -59,7 +83,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         case .demo:
             elm327 = ELM327(comm: MOCKComm())
         }
-        #endif
+#endif
         elm327.obdDelegate = self
     }
 
@@ -106,11 +130,22 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///
     /// - Parameter connectionType: The new desired connection type.
     public func switchConnectionType(_ connectionType: ConnectionType) {
-        self.stopConnection()
-        self.connectionState = .disconnected
+        guard self.connectionType != connectionType else { return }
+        stopConnection()
+        self.connectionType = connectionType
+        initializeELM327()
+    }
+
+    private func initializeELM327() {
         switch connectionType {
         case .bluetooth:
-            elm327 = ELM327(comm: BLEManager())
+            let bleManager = BLEManager()
+            elm327 = ELM327(comm: bleManager)
+            bleManager.peripheralPublisher
+                .sink { [weak self] peripheral in
+                    self?.peripherals.append(peripheral)
+                }
+                .store(in: &cancellables)
         case .wifi:
             elm327 = ELM327(comm: WifiManager())
         case .demo:
@@ -122,7 +157,6 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     // MARK: - Request Handling
 
     var pidList: [OBDCommand] = []
-
 
     /// Sends an OBD2 command to the vehicle and returns a publisher with the result.
     /// - Parameter command: The OBD2 command to send.
@@ -148,7 +182,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
                 }
             }
             .eraseToAnyPublisher()
-     }
+    }
 
     /// Adds an OBD2 command to the list of commands to be requested.
     public func addPID(_ pid: OBDCommand) {
@@ -199,13 +233,13 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///   - Parameter command: The OBD2 command to send.
     ///   - Returns: The raw response from the vehicle.
     public func getSupportedPIDs() async -> [OBDCommand] {
-        return await elm327.getSupportedPIDs()
+        await elm327.getSupportedPIDs()
     }
 
     ///  Scans for trouble codes and returns the result.
     ///  - Returns: The trouble codes found on the vehicle.
     ///  - Throws: Errors that might occur during the request process.
-    public func scanForTroubleCodes() async throws -> [ECUID:[TroubleCode]] {
+    public func scanForTroubleCodes() async throws -> [ECUID: [TroubleCode]] {
         do {
             return try await elm327.scanForTroubleCodes()
         } catch {
@@ -235,9 +269,9 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         }
     }
 
-//    public func switchToDemoMode(_ isDemoMode: Bool) {
-//        elm327.switchToDemoMode(isDemoMode)
-//    }
+    //    public func switchToDemoMode(_ isDemoMode: Bool) {
+    //        elm327.switchToDemoMode(isDemoMode)
+    //    }
 
     /// Sends a raw command to the vehicle and returns the raw response.
     /// - Parameter message: The raw command to send.
@@ -253,7 +287,7 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
 
     public func connectToPeripheral(peripheral: CBPeripheral) async throws {
         do {
-            try await elm327.connectToAdapter(timeout: 5,peripheral: peripheral)
+            try await elm327.connectToAdapter(timeout: 5, peripheral: peripheral)
         } catch {
             throw OBDServiceError.adapterConnectionFailed(underlyingError: error)
         }
@@ -261,22 +295,66 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
 
     public func scanForPeripherals() async throws {
         do {
-            DispatchQueue.main.async {
-                self.isScanning = true
-            }
+            self.isScanning = true
             try await elm327.scanForPeripherals()
-            DispatchQueue.main.async {
-                self.isScanning = false
-            }
+            self.isScanning = false
         } catch {
             throw OBDServiceError.scanFailed(underlyingError: error)
         }
     }
-}
 
-public struct MeasurementResult: Equatable {
-    public let value: Double
-    public let unit: Unit
+//    public func test() {
+//        if let resourcePath = Bundle.module.resourcePath {
+//               print("Bundle resources path: \(resourcePath)")
+//               let files = try? FileManager.default.contentsOfDirectory(atPath: resourcePath)
+//               print("Files in bundle: \(files ?? [])")
+//           }
+//        // Get the path for the JSON file within the app's bundle
+//        guard let path = Bundle.module.path(forResource: "commands", ofType: "json") else {
+//            print("Error: commands.json file not found in the bundle.")
+//            return
+//        }
+//
+//        // Load the file data
+//        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+//            print("Error: Unable to load data from commands.json.")
+//            return
+//        }
+//
+//        do {
+//                // Load the JSON
+//                let data = try Data(contentsOf: URL(fileURLWithPath: path))
+//
+//                // Decode the JSON into an array of dictionaries to handle flexible structures
+//                guard var rawCommands = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] else {
+//                    print("Error: Invalid JSON format.")
+//                    return
+//                }
+//
+//                // Edit the `decoder` field
+//                rawCommands = rawCommands.map { command in
+//                    var updatedCommand = command
+//                    if let decoder = command["decoder"] as? [String: Any], let firstKey = decoder.keys.first {
+//                        updatedCommand["decoder"] = firstKey // Set the first key as the string value
+//                    } else {
+//                        updatedCommand["decoder"] = "none" // Default to "none" if no keys exist
+//                    }
+//                    return updatedCommand
+//                }
+//
+//                // Convert back to JSON data
+//                let updatedData = try JSONSerialization.data(withJSONObject: rawCommands, options: .prettyPrinted)
+//
+//                // Save the updated JSON to a file
+//                let outputPath = FileManager.default.temporaryDirectory.appendingPathComponent("commands_updated.json")
+//                try updatedData.write(to: outputPath)
+//
+//                print("Modified commands.json saved to: \(outputPath.path)")
+//            } catch {
+//                print("Error processing commands.json: \(error)")
+//            }
+//    }
+
 }
 
 public enum OBDServiceError: Error {
@@ -286,6 +364,11 @@ public enum OBDServiceError: Error {
     case scanFailed(underlyingError: Error)
     case clearFailed(underlyingError: Error)
     case commandFailed(command: String, error: Error)
+}
+
+public struct MeasurementResult: Equatable {
+    public let value: Double
+    public let unit: Unit
 }
 
 public func getVINInfo(vin: String) async throws -> VINResults {

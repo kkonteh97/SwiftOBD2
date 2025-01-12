@@ -1,6 +1,6 @@
 //
 //  test_protocol_legacy.swift
-//  
+//
 //
 //  Created by kemo konteh on 5/15/24.
 //
@@ -12,11 +12,10 @@ let LEGACY_PROTOCOLS: [CANProtocol] = [
     SAE_J1850_VPW(),
     ISO_9141_2(),
     ISO_14230_4_KWP_5Baud(),
-    ISO_14230_4_KWP_Fast()
+    ISO_14230_4_KWP_Fast(),
 ]
 
 final class test_protocol_legacy: XCTestCase {
-
     func test_single_frame() {
         for canprotocol in LEGACY_PROTOCOLS {
             // minimum valid length
@@ -33,5 +32,4 @@ final class test_protocol_legacy: XCTestCase {
             XCTAssertNil(data)
         }
     }
-
 }

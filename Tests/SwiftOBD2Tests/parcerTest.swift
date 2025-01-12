@@ -28,7 +28,7 @@ final class OBDParcerTest: XCTestCase {
         // Setup
         let rawFrameString = ["7E8 06 41 00 BE 3F A8 13 00"]
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
+            .filter(\.isHex)
         let frameType = FrameType.singleFrame
         let frame = try? Frame(raw: rawFrameString[0], idBits: 11)
 
@@ -42,7 +42,7 @@ final class OBDParcerTest: XCTestCase {
         let rawFrameString = ["7E8 10 3E 00 00 00 00 00 00"]
 
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
+            .filter(\.isHex)
 
         let frameType = FrameType.firstFrame
         let frame = try? Frame(raw: rawFrameString[0], idBits: 11)
@@ -55,7 +55,7 @@ final class OBDParcerTest: XCTestCase {
         // Setup
         let rawFrameString = ["7E8 06 41 00 BE 3F A8 13 00"]
             .compactMap { $0.replacingOccurrences(of: " ", with: "") }
-            .filter { $0.isHex }
+            .filter(\.isHex)
         guard let frame = try? Frame(raw: rawFrameString[0], idBits: 11) else {
             XCTFail("Failed to initialize frame")
             return

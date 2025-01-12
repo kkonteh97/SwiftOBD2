@@ -1,0 +1,2654 @@
+[
+  {
+    "bytes" : 5,
+    "command" : "ATD",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Set to default",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATZ",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Reset",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATRV",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Voltage",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATL0",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Linefeeds Off",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATE0",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Echo Off",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATH1",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Headers On",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATH0",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Headers Off",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATAT1",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Adaptive Timing On",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATSTFF",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Set Time to Fast",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "ATDPN",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Describe Protocol Number",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "0100",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported PIDs [01-20]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "0101",
+    "decoder" : {
+      "status" : {
+
+      }
+    },
+    "description" : "Status since DTCs cleared",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "0102",
+    "decoder" : {
+      "singleDTC" : {
+
+      }
+    },
+    "description" : "DTC that triggered the freeze frame",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "0103",
+    "decoder" : {
+      "fuelStatus" : {
+
+      }
+    },
+    "description" : "Fuel System Status",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0104",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Calculated Engine Load",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0105",
+    "decoder" : {
+      "temp" : {
+
+      }
+    },
+    "description" : "Coolant temperature",
+    "live" : true,
+    "maxValue" : 215,
+    "minValue" : -40
+  },
+  {
+    "bytes" : 2,
+    "command" : "0106",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Short Term Fuel Trim - Bank 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0107",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Long Term Fuel Trim - Bank 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0108",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Short Term Fuel Trim - Bank 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0109",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Long Term Fuel Trim - Bank 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "010A",
+    "decoder" : {
+      "fuelPressure" : {
+
+      }
+    },
+    "description" : "Fuel Pressure",
+    "live" : true,
+    "maxValue" : 765,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "010B",
+    "decoder" : {
+      "pressure" : {
+
+      }
+    },
+    "description" : "Intake Manifold Pressure",
+    "live" : true,
+    "maxValue" : 255,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "010C",
+    "decoder" : {
+      "uas" : {
+        "_0" : 7
+      }
+    },
+    "description" : "RPM",
+    "live" : true,
+    "maxValue" : 8000,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "010D",
+    "decoder" : {
+      "uas" : {
+        "_0" : 9
+      }
+    },
+    "description" : "Vehicle Speed",
+    "live" : true,
+    "maxValue" : 280,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "010E",
+    "decoder" : {
+      "timingAdvance" : {
+
+      }
+    },
+    "description" : "Timing Advance",
+    "live" : true,
+    "maxValue" : 64,
+    "minValue" : -64
+  },
+  {
+    "bytes" : 2,
+    "command" : "010F",
+    "decoder" : {
+      "temp" : {
+
+      }
+    },
+    "description" : "Intake Air Temp",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0110",
+    "decoder" : {
+      "uas" : {
+        "_0" : 39
+      }
+    },
+    "description" : "Air Flow Rate (MAF)",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0111",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Throttle Position",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0112",
+    "decoder" : {
+      "airStatus" : {
+
+      }
+    },
+    "description" : "Secondary Air Status",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0113",
+    "decoder" : {
+      "o2Sensors" : {
+
+      }
+    },
+    "description" : "O2 Sensors Present",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0114",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 1 - Sensor 1 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0115",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 1 - Sensor 2 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0116",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 1 - Sensor 3 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0117",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 1 - Sensor 4 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0118",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 2 - Sensor 1 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0119",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 2 - Sensor 2 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "011A",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 2 - Sensor 3 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "011B",
+    "decoder" : {
+      "sensorVoltage" : {
+
+      }
+    },
+    "description" : "O2: Bank 2 - Sensor 4 Voltage",
+    "live" : true,
+    "maxValue" : 1.275,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "011C",
+    "decoder" : {
+      "obdCompliance" : {
+
+      }
+    },
+    "description" : "OBD Standards Compliance",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "011D",
+    "decoder" : {
+      "o2SensorsAlt" : {
+
+      }
+    },
+    "description" : "O2 Sensors Present (alternate)",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "011E",
+    "decoder" : {
+      "auxInputStatus" : {
+
+      }
+    },
+    "description" : "Auxiliary input status (power take off)",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "011F",
+    "decoder" : {
+      "uas" : {
+        "_0" : 18
+      }
+    },
+    "description" : "Engine Run Time",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 5,
+    "command" : "0120",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported PIDs [21-40]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0121",
+    "decoder" : {
+      "uas" : {
+        "_0" : 37
+      }
+    },
+    "description" : "Distance Traveled with MIL on",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0122",
+    "decoder" : {
+      "uas" : {
+        "_0" : 25
+      }
+    },
+    "description" : "Fuel Rail Pressure (relative to vacuum)",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0123",
+    "decoder" : {
+      "uas" : {
+        "_0" : 27
+      }
+    },
+    "description" : "Fuel Rail Pressure (direct inject)",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0124",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 1 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0125",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 2 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0126",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 3 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0127",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 4 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0128",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 5 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0129",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 6 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "012A",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 7 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "012B",
+    "decoder" : {
+      "sensorVoltageBig" : {
+
+      }
+    },
+    "description" : "02 Sensor 8 WR Lambda Voltage",
+    "live" : true,
+    "maxValue" : 8.192,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "012C",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Commanded EGR",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "012D",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "EGR Error",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "012E",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Commanded Evaporative Purge",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "012F",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Fuel Tank Level Input",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0130",
+    "decoder" : {
+      "uas" : {
+        "_0" : 1
+      }
+    },
+    "description" : "Number of warm-ups since codes cleared",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0131",
+    "decoder" : {
+      "uas" : {
+        "_0" : 37
+      }
+    },
+    "description" : "Distance traveled since codes cleared",
+    "live" : true,
+    "maxValue" : 65535,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0132",
+    "decoder" : {
+      "evapPressure" : {
+
+      }
+    },
+    "description" : "Evaporative system vapor pressure",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0133",
+    "decoder" : {
+      "pressure" : {
+
+      }
+    },
+    "description" : "Barometric Pressure",
+    "live" : true,
+    "maxValue" : 255,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0134",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 1 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "0135",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 2 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "0136",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 3 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "0137",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 4 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "0138",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 5 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "0139",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 6 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "013A",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 7 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "013B",
+    "decoder" : {
+      "currentCentered" : {
+
+      }
+    },
+    "description" : "02 Sensor 8 WR Lambda Current",
+    "live" : true,
+    "maxValue" : 128,
+    "minValue" : -128
+  },
+  {
+    "bytes" : 4,
+    "command" : "013C",
+    "decoder" : {
+      "uas" : {
+        "_0" : 22
+      }
+    },
+    "description" : "Catalyst Temperature: Bank 1 - Sensor 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "013D",
+    "decoder" : {
+      "uas" : {
+        "_0" : 22
+      }
+    },
+    "description" : "Catalyst Temperature: Bank 2 - Sensor 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "013E",
+    "decoder" : {
+      "uas" : {
+        "_0" : 22
+      }
+    },
+    "description" : "Catalyst Temperature: Bank 1 - Sensor 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "013F",
+    "decoder" : {
+      "uas" : {
+        "_0" : 22
+      }
+    },
+    "description" : "Catalyst Temperature: Bank 1 - Sensor 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0140",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported PIDs [41-60]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "0141",
+    "decoder" : {
+      "status" : {
+
+      }
+    },
+    "description" : "Monitor status this drive cycle",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0142",
+    "decoder" : {
+      "uas" : {
+        "_0" : 11
+      }
+    },
+    "description" : "Control module voltage",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0143",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute load value",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0144",
+    "decoder" : {
+      "uas" : {
+        "_0" : 30
+      }
+    },
+    "description" : "Commanded equivalence ratio",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0145",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Relative throttle position",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0146",
+    "decoder" : {
+      "temp" : {
+
+      }
+    },
+    "description" : "Ambient air temperature",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0147",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute throttle position B",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0148",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute throttle position C",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0149",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute throttle position D",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "014A",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute throttle position E",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "014B",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Absolute throttle position F",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "014C",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Commanded throttle actuator",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "014D",
+    "decoder" : {
+      "uas" : {
+        "_0" : 52
+      }
+    },
+    "description" : "Time run with MIL on",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "014E",
+    "decoder" : {
+      "uas" : {
+        "_0" : 52
+      }
+    },
+    "description" : "Time since trouble codes cleared",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 6,
+    "command" : "014F",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Maximum value for various values",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0150",
+    "decoder" : {
+      "maxMaf" : {
+
+      }
+    },
+    "description" : "Maximum value for air flow rate from mass air flow sensor",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0151",
+    "decoder" : {
+      "fuelType" : {
+
+      }
+    },
+    "description" : "Fuel Type",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 2,
+    "command" : "0152",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Ethanol fuel %",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0153",
+    "decoder" : {
+      "evapPressureAlt" : {
+
+      }
+    },
+    "description" : "Absolute Evap system vapor pressure",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0154",
+    "decoder" : {
+      "evapPressureAlt" : {
+
+      }
+    },
+    "description" : "Evap system vapor pressure",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0155",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Short term secondary O2 trim - Bank 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0156",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Long term secondary O2 trim - Bank 1",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0157",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Short term secondary O2 trim - Bank 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0158",
+    "decoder" : {
+      "percentCentered" : {
+
+      }
+    },
+    "description" : "Long term secondary O2 trim - Bank 2",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "0159",
+    "decoder" : {
+      "uas" : {
+        "_0" : 27
+      }
+    },
+    "description" : "Fuel rail pressure (absolute)",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "015A",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Relative accelerator pedal position",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "015B",
+    "decoder" : {
+      "percent" : {
+
+      }
+    },
+    "description" : "Hybrid battery pack remaining life",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "015C",
+    "decoder" : {
+      "temp" : {
+
+      }
+    },
+    "description" : "Engine oil temperature",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "015D",
+    "decoder" : {
+      "injectTiming" : {
+
+      }
+    },
+    "description" : "Fuel injection timing",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 4,
+    "command" : "015E",
+    "decoder" : {
+      "fuelRate" : {
+
+      }
+    },
+    "description" : "Engine fuel rate",
+    "live" : true,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "015F",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Designed emission requirements",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "03",
+    "decoder" : {
+      "dtc" : {
+
+      }
+    },
+    "description" : "Get DTCs",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0600",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [01-20]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0601",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 1 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0602",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 1 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0603",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 1 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0604",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 1 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0605",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 2 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0606",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 2 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0607",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 2 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0608",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 2 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0609",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 3 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060A",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 3 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060B",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 3 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060C",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 3 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060D",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 4 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060E",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 4 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "060F",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 4 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0610",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Monitor Bank 4 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0620",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [21-40]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0621",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Catalyst Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0622",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Catalyst Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0623",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Catalyst Monitor Bank 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0624",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Catalyst Monitor Bank 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0631",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EGR Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0632",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EGR Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0633",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EGR Monitor Bank 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0634",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EGR Monitor Bank 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0635",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "VVT Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0636",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "VVT Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0637",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "VVT Monitor Bank 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0638",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "VVT Monitor Bank 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0639",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EVAP Monitor (Cap Off \/ 0.150\")",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "063A",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EVAP Monitor (0.090\")",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "063B",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EVAP Monitor (0.040\")",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "063C",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "EVAP Monitor (0.020\")",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "063D",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Purge Flow Monitor",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0640",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [41-60]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0641",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 1 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0642",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 1 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0643",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 1 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0644",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 1 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0645",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 2 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0646",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 2 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0647",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 2 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0648",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 2 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0649",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 3 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064A",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 3 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064B",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 3 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064C",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 3 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064D",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 4 - Sensor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064E",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 4 - Sensor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "064F",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 4 - Sensor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0650",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "O2 Sensor Heater Monitor Bank 4 - Sensor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0660",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [61-80]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0661",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Heated Catalyst Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0662",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Heated Catalyst Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0663",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Heated Catalyst Monitor Bank 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0664",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Heated Catalyst Monitor Bank 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0671",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Secondary Air Monitor 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0672",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Secondary Air Monitor 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0673",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Secondary Air Monitor 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0674",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Secondary Air Monitor 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0680",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [81-A0]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0681",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Fuel System Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0682",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Fuel System Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0683",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Fuel System Monitor Bank 3",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0684",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Fuel System Monitor Bank 4",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0685",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Boost Pressure Control Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0686",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Boost Pressure Control Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0690",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "NOx Absorber Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0691",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "NOx Absorber Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0698",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "NOx Catalyst Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "0699",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "NOx Catalyst Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A0",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported MIDs [A1-C0]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A1",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Monitor General Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A2",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 1 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A3",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 2 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A4",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 3 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A5",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 4 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A6",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 5 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A7",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 6 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A8",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 7 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06A9",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 8 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06AA",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 9 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06AB",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 10 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06AC",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 11 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06AD",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "Misfire Cylinder 12 Data",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06B0",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "PM Filter Monitor Bank 1",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "06B1",
+    "decoder" : {
+      "monitor" : {
+
+      }
+    },
+    "description" : "PM Filter Monitor Bank 2",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 7,
+    "command" : "0900",
+    "decoder" : {
+      "pid" : {
+
+      }
+    },
+    "description" : "Supported PIDs [01-20]",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0901",
+    "decoder" : {
+      "count" : {
+
+      }
+    },
+    "description" : "VIN Message Count",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 22,
+    "command" : "0902",
+    "decoder" : {
+      "encoded_string" : {
+
+      }
+    },
+    "description" : "Vehicle Identification Number",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0903",
+    "decoder" : {
+      "count" : {
+
+      }
+    },
+    "description" : "Calibration ID message count for PID 04",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 18,
+    "command" : "0904",
+    "decoder" : {
+      "encoded_string" : {
+
+      }
+    },
+    "description" : "Calibration ID",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 3,
+    "command" : "0905",
+    "decoder" : {
+      "count" : {
+
+      }
+    },
+    "description" : "CVN Message Count for PID 06",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 10,
+    "command" : "0906",
+    "decoder" : {
+      "cvn" : {
+
+      }
+    },
+    "description" : "Calibration Verification Numbers",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "ATSP0",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Auto protocol",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  },
+  {
+    "bytes" : 0,
+    "command" : "ATSP6",
+    "decoder" : {
+      "none" : {
+
+      }
+    },
+    "description" : "Auto protocol",
+    "live" : false,
+    "maxValue" : 100,
+    "minValue" : 0
+  }
+]

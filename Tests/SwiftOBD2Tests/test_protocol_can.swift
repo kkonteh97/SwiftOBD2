@@ -1,6 +1,6 @@
 //
 //  test_protocol_can.swift
-//  
+//
 //
 //  Created by kemo konteh on 5/15/24.
 //
@@ -13,7 +13,6 @@ let CAN_11_PROTOCOLS: [CANProtocol] = [
 ]
 
 final class test_protocol_can: XCTestCase {
-
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -26,7 +25,7 @@ final class test_protocol_can: XCTestCase {
         for canprotocol in CAN_11_PROTOCOLS {
             var data = try? canprotocol.parse(["7E8 06 41 00 00 01 02 03"]).first?.data
             XCTAssertNotNil(data)
-            XCTAssertEqual(data, Data([0x00, 0x00,0x01, 0x02, 0x03]))
+            XCTAssertEqual(data, Data([0x00, 0x00, 0x01, 0x02, 0x03]))
 
             // minimum valid length
             data = try? canprotocol.parse(["7E8 01 41"]).first?.data

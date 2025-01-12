@@ -9,7 +9,7 @@ import Foundation
 
 public struct TroubleCode: Codable, Hashable, Comparable {
     public static func < (lhs: TroubleCode, rhs: TroubleCode) -> Bool {
-        return lhs.code < rhs.code
+        lhs.code < rhs.code
     }
 
     public let code: String
@@ -2083,5 +2083,5 @@ let codes: [String: String] = [
     "U0428": "Invalid Data Received From Steering Angle Sensor Module",
     "U0429": "Invalid Data Received From Steering Column Control Module",
     "U0430": "Invalid Data Received From Tire Pressure Monitor Module",
-    "U0431": "Invalid Data Received From Body Control Module 'A'"
+    "U0431": "Invalid Data Received From Body Control Module 'A'",
 ]

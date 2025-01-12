@@ -99,21 +99,21 @@ public enum PROTOCOL: String, Codable, CaseIterable {
             .protocol4: .protocol3,
             .protocol3: .protocol2,
             .protocol2: .protocol1,
-            .protocol1: .NONE
+            .protocol1: .NONE,
         ]
 
         return protocolMap[self] ?? .NONE
     }
 
     var cmd: String {
-          return "ATSP\(self.rawValue)"
+        "ATSP\(rawValue)"
     }
 
     public static let asArray: [PROTOCOL] = [
-       .protocol1, .protocol2, .protocol3, .protocol4, .protocol5,
-       .protocol6, .protocol7, .protocol8, .protocol9, .protocolA,
-       .protocolB, .protocolC, .NONE
-   ]
+        .protocol1, .protocol2, .protocol3, .protocol4, .protocol5,
+        .protocol6, .protocol7, .protocol8, .protocol9, .protocolA,
+        .protocolB, .protocolC, .NONE,
+    ]
 }
 
 // dictionary of all the protocols

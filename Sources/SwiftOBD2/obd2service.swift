@@ -129,10 +129,8 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// Switches the active connection type (between Bluetooth and Wi-Fi).
     ///
     /// - Parameter connectionType: The new desired connection type.
-    public func switchConnectionType(_ connectionType: ConnectionType) {
-        guard self.connectionType != connectionType else { return }
+    private func switchConnectionType(_ connectionType: ConnectionType) {
         stopConnection()
-        self.connectionType = connectionType
         initializeELM327()
     }
 

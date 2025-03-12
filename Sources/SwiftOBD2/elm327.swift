@@ -204,7 +204,7 @@ class ELM327 {
         let response = try? await sendCommand("0100", retries: 3)
 
         if let response = response,
-           response.contains(where: { $0.contains("41 00") }) {
+           response.contains(where: { $0.range(of: #"41\s*00"#, options: .regularExpression) != nil }) {
             logger.info("Protocol \(obdProtocol.description) is valid.")
             r100 = response
             return true

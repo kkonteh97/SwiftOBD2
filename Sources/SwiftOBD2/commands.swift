@@ -71,13 +71,15 @@ public struct CommandProperties: Encodable {
     }
 }
 
-public enum OBDCommand: Codable, Hashable, Comparable {
+public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
     case general(General)
     case mode1(Mode1)
     case mode3(Mode3)
     case mode6(Mode6)
     case mode9(Mode9)
     case protocols(Protocols)
+	
+	public var id: Self { return self }
 
     public var properties: CommandProperties {
         switch self {

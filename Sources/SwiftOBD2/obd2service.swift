@@ -369,6 +369,12 @@ public struct MeasurementResult: Equatable {
     public let unit: Unit
 }
 
+public extension MeasurementResult {
+	static var mock: MeasurementResult {
+		.init(value: 125, unit: .init(symbol: "km/h"))
+	}
+}
+
 public func getVINInfo(vin: String) async throws -> VINResults {
     let endpoint = "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/\(vin)?format=json"
 

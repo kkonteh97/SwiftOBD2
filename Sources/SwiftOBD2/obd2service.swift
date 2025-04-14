@@ -365,8 +365,13 @@ public enum OBDServiceError: Error {
 }
 
 public struct MeasurementResult: Equatable {
-    public let value: Double
+    public var value: Double
     public let unit: Unit
+	
+	public init(value: Double, unit: Unit) {
+		self.value = value
+		self.unit = unit
+	}
 }
 
 public extension MeasurementResult {

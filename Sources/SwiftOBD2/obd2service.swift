@@ -375,8 +375,8 @@ public struct MeasurementResult: Equatable {
 }
 
 public extension MeasurementResult {
-	static var mock: MeasurementResult {
-		.init(value: 125, unit: .init(symbol: "km/h"))
+	static func mock(_ value: Double = 125, _ suffix: String = "km/h") -> MeasurementResult {
+		.init(value: value, unit: .init(symbol: suffix))
 	}
 }
 

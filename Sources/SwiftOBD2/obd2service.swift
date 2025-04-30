@@ -365,8 +365,19 @@ public enum OBDServiceError: Error {
 }
 
 public struct MeasurementResult: Equatable {
-    public let value: Double
+    public var value: Double
     public let unit: Unit
+	
+	public init(value: Double, unit: Unit) {
+		self.value = value
+		self.unit = unit
+	}
+}
+
+public extension MeasurementResult {
+	static func mock(_ value: Double = 125, _ suffix: String = "km/h") -> MeasurementResult {
+		.init(value: value, unit: .init(symbol: suffix))
+	}
 }
 
 public func getVINInfo(vin: String) async throws -> VINResults {

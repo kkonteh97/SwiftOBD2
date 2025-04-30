@@ -566,7 +566,7 @@ struct PressureDecoder: Decoder {
 
 struct FuelPressureDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        var value = Double(data[0])
+		var value = Double(data.first ?? 0)
         value = value * 3
         return .success(.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals)))
     }

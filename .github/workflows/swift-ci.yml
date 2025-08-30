@@ -1,4 +1,6 @@
 name: Swift
+permissions:
+  contents: read
 
 on:
   push:

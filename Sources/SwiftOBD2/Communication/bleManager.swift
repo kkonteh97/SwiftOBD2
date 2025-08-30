@@ -263,6 +263,7 @@ class BLEManager: NSObject, CommProtocol {
     // MARK: - Async Methods
 
     func connectAsync(timeout: TimeInterval, peripheral _: CBPeripheral? = nil) async throws {
+        await waitForPoweredOn()
         if connectionState != .disconnected {
             return
         }
@@ -284,6 +285,13 @@ class BLEManager: NSObject, CommProtocol {
         }
         connectionCompletion = nil
     }
+
+    func waitForPoweredOn() async {
+        while centralManager.state != .poweredOn {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        }
+    }
+
 
     /// Sends a message to the connected peripheral and returns the response.
     /// - Parameter message: The message to send.

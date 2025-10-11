@@ -1,11 +1,59 @@
 ![Header](https://github.com/kkonteh97/SwiftOBD2/blob/main/Sources/Assets/github-header-image.png)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)  ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20macOS%20-lightgrey) ![Swift Version](https://img.shields.io/badge/swift-5.0-orange) ![iOS Version](https://img.shields.io/badge/iOS-^14.0-blue) ![macOS Version](https://img.shields.io/badge/macOS-11.0%20%7C%2012.0-blue)
+
+[![GitHub stars](https://img.shields.io/github/stars/kkonteh97/SwiftOBD2?style=social)](https://github.com/kkonteh97/SwiftOBD2/stargazers) [![GitHub forks](https://img.shields.io/github/forks/kkonteh97/SwiftOBD2?style=social)](https://github.com/kkonteh97/SwiftOBD2/network/members)
+
+## 🌟 Show Your Support
+
+**⭐ Star this repo** if you find SwiftOBD2 useful! Your support helps the project grow and reach more developers.
+
+[![GitHub contributors](https://img.shields.io/github/contributors/kkonteh97/SwiftOBD2)](https://github.com/kkonteh97/SwiftOBD2/graphs/contributors) [![GitHub issues](https://img.shields.io/github/issues/kkonteh97/SwiftOBD2)](https://github.com/kkonteh97/SwiftOBD2/issues) [![GitHub last commit](https://img.shields.io/github/last-commit/kkonteh97/SwiftOBD2)](https://github.com/kkonteh97/SwiftOBD2/commits/main)
 
 ------------
 
 
 SwiftOBD2 is a Swift package designed to simplify communication with vehicles using an ELM327 OBD2 adapter. It provides a straightforward and powerful interface for interacting with your vehicle's onboard diagnostics system, allowing you to retrieve real-time data and perform diagnostics. [Sample App](https://github.com/kkonteh97/SwiftOBD2App).
+
+## 🚗 See It In Action
+
+> **Demo coming soon!** We're preparing a comprehensive demo video showcasing real-time vehicle data retrieval, DTC scanning, and more.
+
+### Screenshots
+- Real-time RPM, Speed, and Engine Load monitoring
+- Diagnostic Trouble Code (DTC) scanning and clearing
+- Live sensor data visualization
+- Bluetooth connection management
+
+*Screenshots and demo GIF will be added in the next release*
+
+## ⚡ Quick Start
+
+Get up and running in 2 minutes:
+
+```swift
+// 1. Add to your project via Swift Package Manager
+// File > Add Packages... > https://github.com/kkonteh97/SwiftOBD2
+
+// 2. Import and connect
+import SwiftOBD2
+
+let obdService = OBDService(connectionType: .bluetooth)
+let obd2Info = try await obdService.startConnection()
+
+// 3. Get real-time data
+obdService.startContinuousUpdates([.mode1(.rpm), .mode1(.speed)])
+    .sink { measurements in
+        print("RPM: \(measurements[.mode1(.rpm)]?.value ?? 0)")
+        print("Speed: \(measurements[.mode1(.speed)]?.value ?? 0)")
+    }
+```
+
+**Expected Output:**
+```
+RPM: 2150.0 
+Speed: 65.0
+```
 
 ### Requirements
 
@@ -18,7 +66,10 @@ SwiftOBD2 is a Swift package designed to simplify communication with vehicles us
 * Connection Management:
     * Establishes connections to the OBD2 adapter via Bluetooth or Wi-Fi.
     * Handles the initialization of the adapter and the vehicle connection process.
-    * Manages connection states (disconnected, connectedToAdapter, connectedToVehicle).Command Interface: Send and receive OBD2 commands for powerful interaction with your vehicle.
+    * Manages connection states (disconnected, connectedToAdapter, connectedToVehicle).
+    
+* Command Interface:
+    * Send and receive OBD2 commands for powerful interaction with your vehicle.
     
 * Data Retrieval:
     * Supports requests for real-time vehicle data (RPM, speed, etc.) using standard OBD2 PIDs (Parameter IDs).
@@ -27,7 +78,10 @@ SwiftOBD2 is a Swift package designed to simplify communication with vehicles us
     
 * Diagnostics:
     * Retrieves and clears diagnostic trouble codes (DTCs).
-    * Gets the overall status of the vehicle's onboard systems.Sensor Monitoring: Retrieve and view data from various vehicle sensors in real time.
+    * Gets the overall status of the vehicle's onboard systems.
+    
+* Sensor Monitoring:
+    * Retrieve and view data from various vehicle sensors in real time.
     
 * Adaptability and Configuration
     * Can switch between Bluetooth and Wi-Fi communication seamlessly.
@@ -207,6 +261,41 @@ struct ContentView: View {
 
 A comprehensive list of supported OBD2 commands will be available in the full documentation (coming soon).
 
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+**Q: Bluetooth connection fails**
+- Ensure Bluetooth permissions are granted in iOS Settings
+- Verify your ELM327 adapter is in pairing mode
+- Try restarting Bluetooth on your device
+
+**Q: No data received from vehicle**
+- Check that your vehicle is OBD2 compatible (1996+ in US)
+- Ensure the ELM327 adapter is properly connected to the OBD2 port
+- Verify the vehicle is running (some data requires engine on)
+
+**Q: App crashes on connection**
+- Update to the latest version of SwiftOBD2
+- Check that you've added required Bluetooth permissions to Info.plist
+
+### Hardware Compatibility
+
+✅ **Tested ELM327 Adapters:**
+- BAFX Products Bluetooth OBD2
+- OBDLink MX+ Bluetooth
+- VEEPEAK Mini WiFi OBD2
+
+⚠️ **Known Issues:**
+- Some cheap ELM327 clones may have connectivity issues
+- WiFi adapters require network configuration
+
+### Getting Help
+
+- 📋 [Open an issue](https://github.com/kkonteh97/SwiftOBD2/issues) for bug reports
+- 💡 [Start a discussion](https://github.com/kkonteh97/SwiftOBD2/discussions) for questions
+- 📱 Check out the [sample app](https://github.com/kkonteh97/SwiftOBD2App) for implementation examples
+
 ### Important Considerations
 
 * Ensure you have a compatible ELM327 OBD2 adapter.
@@ -228,6 +317,23 @@ This project welcomes your contributions! Feel free to open issues for bug repor
 
 The Swift OBD package is distributed under the MIT license. See the [LICENSE](https://github.com/kkonteh97/SwiftOBD2/blob/main/LICENSE) file for more details.
 
-------------
+---
 
-##### Give this package a ⭐️ if you find it useful!
+## 💖 Support the Project
+
+Love SwiftOBD2? Here's how you can help:
+
+- ⭐ **Star this repository** - It really makes a difference!
+- 🐛 **Report bugs** - Help us improve by reporting issues
+- 💡 **Suggest features** - Share your ideas for new functionality  
+- 🔀 **Contribute code** - Submit PRs for fixes and enhancements
+- 📢 **Spread the word** - Share with other iOS/Swift developers
+
+**Current Stars: 106+ and growing! 🚀**
+
+[![Star History Chart](https://api.star-history.com/svg?repos=kkonteh97/SwiftOBD2&type=Date)](https://star-history.com/#kkonteh97/SwiftOBD2&Date)
+
+### Related Projects
+
+- [SwiftOBD2App](https://github.com/kkonteh97/SwiftOBD2App) - Sample iOS app demonstrating SwiftOBD2
+- Want your project listed here? Open a PR!

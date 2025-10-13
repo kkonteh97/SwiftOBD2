@@ -374,13 +374,13 @@ struct MonitorDecoder: Decoder {
             test.name = testInfo.0
             test.desc = testInfo.1
         } else {
-            print("Encountered unknown Test ID: ", String(format: "%02x"))
+            obdWarning("Unknown Test ID encountered: \(String(format: "%02x", tid))", category: .parsing)
             test.name = "TID: $\(String(format: "%02x", tid)) CID: $\(String(format: "%02x", cid))"
             test.desc = "Unknown"
         }
 
         guard let uas = uasIDS[cid] else {
-            print("Encountered Unknown Units and Scaling ID: ", String(format: "%02x", cid))
+            obdWarning("Unknown Units and Scaling ID: \(String(format: "%02x", cid))", category: .parsing)
             return nil
         }
 
@@ -598,20 +598,20 @@ struct FuelStatusDecoder: Decoder {
             if 7 - index < FUEL_STATUS.count {
                 status_1 = FUEL_STATUS[7 - index]
             } else {
-                print("Invalid response for fuel status (high bits set)")
+                obdError("Invalid fuel status response: high bits set", category: .parsing)
             }
         } else {
-            print("Invalid response for fuel status (multiple/no bits set)")
+            obdError("Invalid fuel status response: multiple or no bits set", category: .parsing)
         }
 
         if lowBits.filter({ $0 == 1 }).count == 1, let index = lowBits.firstIndex(of: 1) {
             if 7 - index < FUEL_STATUS.count {
                 status_2 = FUEL_STATUS[7 - index]
             } else {
-                print("Invalid response for fuel status (low bits set)")
+                obdError("Invalid fuel status response: low bits set", category: .parsing)
             }
         } else {
-            print("Invalid response for fuel status (multiple/no bits set in low bits)")
+            obdError("Invalid fuel status response: multiple or no bits set in low bits", category: .parsing)
         }
 
         if let status_1 = status_1, let status_2 = status_2 {

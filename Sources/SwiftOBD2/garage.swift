@@ -131,7 +131,7 @@ public class Garage: ObservableObject {
         // put garage in demo mode
         switch isDemoMode {
         case true:
-            print("Demo Mode")
+            obdInfo("Switched to demo mode", category: .service)
         case false:
             loadGarage()
         }

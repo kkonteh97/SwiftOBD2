@@ -132,14 +132,16 @@ struct Frame {
         data = Data(dataBytes.dropFirst(4))
 
         guard dataBytes.count >= 6, dataBytes.count <= 12 else {
-            print("invalid frame size", dataBytes.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
+            obdError("Invalid frame size: \(dataBytes.count) bytes", category: .parsing)
+            OBDLogger.shared.logParseError("Frame size out of range (6-12 bytes)", data: Data(dataBytes), expectedFormat: "6-12 bytes")
             throw ParserError.error("Invalid frame size")
         }
 
         guard let dataType = data.first,
               let type = FrameType(rawValue: dataType & 0xF0)
         else {
-            print("invalid frame type", dataBytes.compactMap { String(format: "%02X", $0) })
+            obdError("Invalid frame type detected", category: .parsing)
+            OBDLogger.shared.logParseError("Unknown frame type", data: Data(dataBytes), expectedFormat: "Valid FrameType enum value")
             throw ParserError.error("Invalid frame type")
         }
 

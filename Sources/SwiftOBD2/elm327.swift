@@ -475,7 +475,7 @@ struct BatchedResponse {
         case let .success(measurementResult):
             return measurementResult.measurementResult
         case let .failure(error):
-            print("Failed to decode \(cmd.properties.command): \(error.localizedDescription)")
+            obdError("Failed to decode command \(cmd.properties.command): \(error.localizedDescription) | Data: \(valueData.map { String(format: "%02X", $0) }.joined(separator: " "))", category: .parsing)
             return nil
         }
     }

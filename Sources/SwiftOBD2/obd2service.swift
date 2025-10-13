@@ -45,7 +45,6 @@ public class ConfigurationService {
 public class OBDService: ObservableObject, OBDServiceDelegate {
     @Published public private(set) var connectionState: ConnectionState = .disconnected
     @Published public private(set) var isScanning: Bool = false
-    @Published public private(set) var peripherals: [CBPeripheral] = []
     @Published public private(set) var connectedPeripheral: CBPeripheral?
     @Published public var connectionType: ConnectionType {
         didSet {
@@ -73,11 +72,6 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         case .bluetooth:
             let bleManager = BLEManager()
             elm327 = ELM327(comm: bleManager)
-            bleManager.peripheralPublisher
-                .sink { [weak self] peripheral in
-                    self?.peripherals.append(peripheral)
-                }
-                .store(in: &cancellables)
         case .wifi:
             elm327 = ELM327(comm: WifiManager())
         case .demo:
@@ -91,7 +85,11 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
 
     public func connectionStateChanged(state: ConnectionState) {
         DispatchQueue.main.async {
+            let oldState = self.connectionState
             self.connectionState = state
+            if oldState != state {
+                OBDLogger.shared.logConnectionChange(from: oldState, to: state)
+            }
         }
     }
 
@@ -101,12 +99,28 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Returns: Information about the connected vehicle (`OBDInfo`).
     /// - Throws: Errors that might occur during the connection process.
     public func startConnection(preferedProtocol: PROTOCOL? = nil, timeout: TimeInterval = 7) async throws -> OBDInfo {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        obdInfo("Starting connection with timeout: \(timeout)s", category: .connection)
+        
         do {
+            obdDebug("Connecting to adapter...", category: .connection)
             try await elm327.connectToAdapter(timeout: timeout)
+            
+            obdDebug("Initializing adapter...", category: .connection)
             try await elm327.adapterInitialization()
-            let obdInfo = try await initializeVehicle(preferedProtocol)
-            return obdInfo
+            
+            obdDebug("Initializing vehicle connection...", category: .connection)
+            let vehicleInfo = try await initializeVehicle(preferedProtocol)
+
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            OBDLogger.shared.logPerformance("Connection established", duration: duration, success: true)
+            obdInfo("Successfully connected to vehicle: \(vehicleInfo.vin ?? "Unknown")", category: .connection)
+
+            return vehicleInfo
         } catch {
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            OBDLogger.shared.logPerformance("Connection failed", duration: duration, success: false)
+            obdError("Connection failed: \(error.localizedDescription)", category: .connection)
             throw OBDServiceError.adapterConnectionFailed(underlyingError: error) // Propagate
         }
     }
@@ -139,11 +153,6 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         case .bluetooth:
             let bleManager = BLEManager()
             elm327 = ELM327(comm: bleManager)
-            bleManager.peripheralPublisher
-                .sink { [weak self] peripheral in
-                    self?.peripherals.append(peripheral)
-                }
-                .store(in: &cancellables)
         case .wifi:
             elm327 = ELM327(comm: WifiManager())
         case .demo:

@@ -153,7 +153,7 @@ class MOCKComm: CommProtocol {
                 // 2 by 2
                 hexString = hexString.chunked(by: 2).joined(separator: " ")
                 response +=  hexString
-                print("hexString", hexString)
+                obdDebug("Generated DTC hex: \(hexString)", category: .communication)
             }
             if ecuSettings.headerOn {
                 header = "7E8"
@@ -198,7 +198,7 @@ extension OBDCommand {
     static func mockResponse(forCommand command: String) -> String? {
 
         guard let obd2Command = self.from(command: command) else {
-            print("Invalid command", command, "\n")
+            obdWarning("Invalid mock command: \(command)", category: .communication)
             return "Invalid command"
         }
 
@@ -334,7 +334,7 @@ extension OBDCommand {
                 return nil
             }
         default:
-            print("none for:" + command)
+            obdDebug("No mock response for command: \(command)", category: .communication)
             return nil
         }
     }

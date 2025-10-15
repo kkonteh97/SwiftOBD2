@@ -443,6 +443,9 @@ struct AbsEvapPressureDecoder: Decoder {
 
 struct FuelTypeDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count > 0 else {
+            return .failure(.invalidData)
+        }
         let i = data[0]
         var value: String?
         if i < FuelTypes.count {
@@ -457,6 +460,9 @@ struct FuelTypeDecoder: Decoder {
 
 struct MaxMafDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count > 0 else {
+            return .failure(.invalidData)
+        }
         let value = data[0] * 10
         return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond))))
     }
@@ -472,6 +478,10 @@ struct AbsoluteLoadDecoder: Decoder {
 
 struct EvapPressureDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count > 1 else {
+            return .failure(.invalidData)
+        }
+        
         let a = twosComp(Int(data[0]), length: 8)
         let b = twosComp(Int(data[1]), length: 8)
 
@@ -482,6 +492,9 @@ struct EvapPressureDecoder: Decoder {
 
 struct SensorVoltageBigDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.indices.contains(2) && data.indices.contains(3) else {
+            return .failure(.invalidData)
+        }
         let value = bytesToInt(data[2 ..< 4])
         let voltage = (Double(value) * 8.0) / 65535
         return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
@@ -539,6 +552,10 @@ struct O2SensorsAltDecoder: Decoder {
 
 struct OBDComplianceDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count > 1 else {
+            return .failure(.invalidData)
+        }
+        
         let i = data[1]
 
         if i < OBD_COMPLIANCE.count {

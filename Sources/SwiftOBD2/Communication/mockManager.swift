@@ -275,9 +275,13 @@ extension OBDCommand {
                 case .fuelType:
                     return "01 01"
                 case .fuelRailPressureDirect:
-                    let pressure = Int.random(in: 0...65535)
-                    let hexPressure = String(format: "%04X", pressure)
-                    return "23" + " " + hexPressure
+                    let pressure = Int.random(in: 0...655) * 100
+                    let A = pressure / 256
+                    let B = pressure % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "23" + " " + hexA + " " + hexB
                 case .ethanoPercent:
                     let fuel = Int.random(in: 0...100)
                     let hexFuel = String(format: "%02X", fuel)
@@ -287,23 +291,62 @@ extension OBDCommand {
                     let hexTemp = String(format: "%02X", temp)
                     return "5C" + " " + hexTemp
                 case .fuelInjectionTiming:
-                    let timing = Int.random(in: 0...65535)
-                    let hexTiming = String(format: "%04X", timing)
-                    return "5D" + " " + hexTiming
+                    let timing = Int.random(in: 0...655) * 100
+                    let A = timing / 256
+                    let B = timing % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "5D" + " " + hexA + " " + hexB
                 case .fuelRate:
-                    let rate = Int.random(in: 0...65535)
-                    let hexRate = String(format: "%04X", rate)
-                    return "5E" + " " + hexRate
+                    let rate = Int.random(in: 3...120)
+                    let A = rate / 256
+                    let B = rate % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "5E" + " " + hexA + " " + hexB
                 case .emissionsReq:
                     return "01 01"
                 case .runTime:
-                    let time = Int.random(in: 0...65535)
-                    let hexTime = String(format: "%04X", time)
-                    return "1F" + " " + hexTime
+                    let runtime = Int.random(in: 0...655) * 100
+                    let A = runtime / 256
+                    let B = runtime % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "1F" + " " + hexA + " " + hexB
                 case .distanceSinceDTCCleared:
-                    let distance = Int.random(in: 0...65535)
-                    let hexDistance = String(format: "%04X", distance)
-                    return "31" + " " + hexDistance
+                    let distance = Int.random(in: 100...6550)
+                 
+                    let A = distance / 256
+                    let B = distance % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "31" + " " + hexA + " " + hexB
+                case .distanceWMIL:
+
+                    let distance = Int.random(in: 100...6550)
+                    let A = distance / 256
+                    let B = distance % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "21" + " " + hexA + " " + hexB
+                case .warmUpsSinceDTCCleared:
+                    let warmUp = Int.random(in: 0...40)
+                    let hexWarmUp = String(format: "%02X", warmUp)
+                    return "30" + " 00 00 " + hexWarmUp
+                case .hybridBatteryLife:
+                    let life = Int.random(in: 100...65500)
+                 
+                    let A = life / 256
+                    let B = life % 256
+
+                    let hexA = String(format: "%02X", A)
+                    let hexB = String(format: "%02X", B)
+                    return "5B" + " " + hexA + " " + hexB
                 default:
                     return nil
             }

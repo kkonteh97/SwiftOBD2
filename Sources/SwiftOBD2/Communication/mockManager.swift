@@ -579,43 +579,267 @@ public class MockOBDDataProvider {
     }
 
     private func handleMode6Command(_ command: String) -> [String]? {
-        let header = settings.headerOn ? "7E8" : ""
+       let header = settings.headerOn ? "7E8" : ""
 
-        // Mock test result
-        let mid = String(command.dropFirst(2))
+       // Parse the MID (Monitor ID) from command
+       let mid = String(command.dropFirst(2).prefix(2))
 
-        guard let mockdata = generateMode6Response(mid) else {
-            return nil
+       // Generate appropriate test results based on MID
+       guard let testResults = generateMode6TestResults(for: mid) else {
+           return ["NO DATA"]
+       }
+
+       // If we have test results, format them properly
+       return formatMode6Response(testResults: testResults, mid: mid, header: header)
+   }
+
+    private func generateMode6TestResults(for mid: String) -> [Mode6TestResult]? {
+           switch mid.uppercased() {
+           case "00": // Request supported MIDs 01-20
+               return generateSupportedMIDsResponse(range: 0x01...0x20)
+
+           case "01": // O2 Sensor Monitor Bank 1 Sensor 1
+               return [
+                   // Rich to lean threshold voltage test
+                   Mode6TestResult(
+                       tid: 0x01, cid: 0x0B,  // 0.001V scaling
+                       value: 0x01C2,  // 450mV
+                       min: 0x0190,    // 400mV minimum
+                       max: 0x01F4     // 500mV maximum
+                   ),
+                   // Lean to rich threshold voltage test
+                   Mode6TestResult(
+                       tid: 0x02, cid: 0x0B,
+                       value: 0x0226,  // 550mV
+                       min: 0x01F4,    // 500mV minimum
+                       max: 0x0258     // 600mV maximum
+                   )
+               ]
+
+           case "02": // O2 Sensor Monitor Bank 1 Sensor 2
+               return [
+                   // Low voltage switch time
+                   Mode6TestResult(
+                       tid: 0x03, cid: 0x10,  // 1ms scaling
+                       value: 0x0032,  // 50ms
+                       min: 0x0014,    // 20ms minimum
+                       max: 0x0064     // 100ms maximum
+                   ),
+                   // High voltage switch time
+                   Mode6TestResult(
+                       tid: 0x04, cid: 0x10,
+                       value: 0x0028,  // 40ms
+                       min: 0x0014,    // 20ms minimum
+                       max: 0x0064     // 100ms maximum
+                   )
+               ]
+
+           case "03": // O2 Sensor Monitor Bank 2 Sensor 1
+               return [
+                   // Sensor period test
+                   Mode6TestResult(
+                       tid: 0x0A, cid: 0x10,  // 1ms scaling
+                       value: 0x03E8,  // 1000ms
+                       min: 0x0320,    // 800ms minimum
+                       max: 0x04B0     // 1200ms maximum
+                   ),
+                   // Min voltage test
+                   Mode6TestResult(
+                       tid: 0x07, cid: 0x0B,  // 0.001V scaling
+                       value: 0x0032,  // 50mV
+                       min: 0x0000,    // 0mV minimum
+                       max: 0x0064     // 100mV maximum
+                   )
+               ]
+
+           case "05": // O2 Sensor Heater Bank 1 Sensor 1
+               return [
+                   // Heater resistance test (marginal - close to limit)
+                   Mode6TestResult(
+                       tid: 0x41, cid: 0x14,  // 1 ohm scaling
+                       value: 0x000E,  // 14 ohms (marginal - close to max)
+                       min: 0x0008,    // 8 ohms minimum
+                       max: 0x000F     // 15 ohms maximum
+                   )
+               ]
+
+           case "06": // O2 Sensor Heater Bank 1 Sensor 2
+               return [
+                   // Heater current test (failed - exceeds max)
+                   Mode6TestResult(
+                       tid: 0x42, cid: 0x8E,  // 0.001A scaling
+                       value: 0x0BB8,  // 3.0A (failed - exceeds max)
+                       min: 0x03E8,    // 1.0A minimum
+                       max: 0x09C4     // 2.5A maximum
+                   )
+               ]
+
+           case "0B": // Misfire Monitor
+               return [
+                   // Average misfire counts
+                   Mode6TestResult(
+                       tid: 0x0B, cid: 0x02,  // 0.1 count scaling
+                       value: 0x0005,  // 0.5 misfires
+                       min: 0x0000,    // 0 minimum
+                       max: 0x0032     // 5.0 maximum
+                   ),
+                   // Total misfire count
+                   Mode6TestResult(
+                       tid: 0x0C, cid: 0x01,  // 1 count scaling
+                       value: 0x0002,  // 2 misfires
+                       min: 0x0000,    // 0 minimum
+                       max: 0x000A     // 10 maximum
+                   )
+               ]
+
+           case "21": // Catalyst Monitor Bank 1
+               return [
+                   // Catalyst efficiency test
+                   Mode6TestResult(
+                       tid: 0x21, cid: 0x1F,  // 0.05 ratio scaling
+                       value: 0x0010,  // 0.80 ratio
+                       min: 0x000E,    // 0.70 minimum
+                       max: 0x0014     // 1.00 maximum
+                   )
+               ]
+
+           case "22": // Catalyst Monitor Bank 2
+               return [
+                   // Catalyst efficiency test (marginal)
+                   Mode6TestResult(
+                       tid: 0x21, cid: 0x1F,
+                       value: 0x000F,  // 0.75 ratio (marginal - close to min)
+                       min: 0x000E,    // 0.70 minimum
+                       max: 0x0014     // 1.00 maximum
+                   )
+               ]
+
+           case "31": // EVAP System Monitor
+               return [
+                   // Small leak test (0.020")
+                   Mode6TestResult(
+                       tid: 0x31, cid: 0x99,  // 0.1 kPa scaling
+                       value: 0x0032,  // 5.0 kPa
+                       min: 0x0000,    // 0 kPa minimum
+                       max: 0x0064     // 10.0 kPa maximum
+                   ),
+                   // Large leak test (0.040")
+                   Mode6TestResult(
+                       tid: 0x32, cid: 0x99,
+                       value: 0x0014,  // 2.0 kPa
+                       min: 0x0000,    // 0 kPa minimum
+                       max: 0x0032     // 5.0 kPa maximum
+                   )
+               ]
+
+           case "41": // EGR Monitor
+               return [
+                   // EGR flow test
+                   Mode6TestResult(
+                       tid: 0x41, cid: 0x27,  // 0.01 g/s scaling
+                       value: 0x012C,  // 3.00 g/s
+                       min: 0x00C8,    // 2.00 g/s minimum
+                       max: 0x0190     // 4.00 g/s maximum
+                   )
+               ]
+
+           case "A0": // Request supported MIDs A1-C0
+               return generateSupportedMIDsResponse(range: 0xA1...0xC0)
+
+           default:
+               // For other MIDs, return a generic passing test
+               if let midValue = UInt8(mid, radix: 16), midValue > 0 {
+                   return [
+                       Mode6TestResult(
+                           tid: 0x01, cid: 0x01,  // Generic count test
+                           value: 0x0005,
+                           min: 0x0000,
+                           max: 0x000A
+                       )
+                   ]
+               }
+               return nil
+           }
+       }
+
+       private func generateSupportedMIDsResponse(range: ClosedRange<UInt8>) -> [Mode6TestResult] {
+           // For supported MIDs response, we return a bit-encoded result
+           // This is a special case that doesn't follow the normal test format
+           // We'll return a dummy test result that the decoder should handle specially
+           var supportedBits: UInt32 = 0
+
+           // Mark some MIDs as supported based on the range
+           if range.contains(0x01) {
+               supportedBits |= (1 << 31) // MID 0x01 supported
+               supportedBits |= (1 << 30) // MID 0x02 supported
+               supportedBits |= (1 << 29) // MID 0x03 supported
+               supportedBits |= (1 << 26) // MID 0x06 supported
+               supportedBits |= (1 << 20) // MID 0x0B supported
+           }
+
+           if range.contains(0x21) {
+               supportedBits |= (1 << 31) // MID 0x21 supported
+               supportedBits |= (1 << 30) // MID 0x22 supported
+           }
+
+           // Return as special format for supported MIDs
+           return [Mode6TestResult(
+               tid: 0x00, cid: 0x00,
+               value: UInt16((supportedBits >> 16) & 0xFFFF),
+               min: UInt16(supportedBits & 0xFFFF),
+               max: 0x0001  // Indicates this is a supported MIDs response
+           )]
+       }
+
+    private func formatMode6Response(testResults: [Mode6TestResult], mid: String, header: String) -> [String] {
+        var responses: [String] = []
+
+        // Add echo if enabled
+        if settings.echo {
+            responses.append("06\(mid)")
         }
-        let response = "46 \(mid) \(mockdata)"
-        let dataBytes = mockdata.replacingOccurrences(of: " ", with: "").count / 2
-        let length = String(format: "%02X", dataBytes)
 
-        if header.isEmpty {
-            return ["\(length) \(response)"]
+        // Build the response data - starts with PID echo, NOT mode byte
+        var responseData = mid  // Echo the requested MID/PID
+
+        // For each test result, add 8 bytes (not 9!)
+        for test in testResults {
+            responseData += String(format: " %02X", test.tid)
+            responseData += String(format: " %02X", test.cid)
+            responseData += String(format: " %02X %02X", (test.value >> 8) & 0xFF, test.value & 0xFF)
+            responseData += String(format: " %02X %02X", (test.min >> 8) & 0xFF, test.min & 0xFF)
+            responseData += String(format: " %02X %02X", (test.max >> 8) & 0xFF, test.max & 0xFF)
+        }
+
+        // Check if we need multi-frame response
+        let dataBytes = responseData.replacingOccurrences(of: " ", with: "").count / 2
+
+        if dataBytes <= 7 {
+            // Single frame response
+            let lengthByte = String(format: "%02X", dataBytes)
+            let modeAndData = "46 " + responseData  // Mode byte goes here
+            if header.isEmpty {
+                responses.append("\(lengthByte) \(modeAndData)")
+            } else {
+                responses.append("\(header) \(lengthByte) \(modeAndData)")
+            }
         } else {
-            return ["\(header) \(length) \(response)"]
+            // Multi-frame response - need to include mode byte in the data
+            let fullData = "46 " + responseData
+            responses.append(contentsOf: generateMultiFrameResponse(data: fullData, header: header))
         }
+
+        return responses
     }
 
-    private func generateMode6Response(_ command: String) -> String? {
-        switch command {
-        case "00":
-            return "C0 00 00 01"
-        case "20":
-            return "C0 00 00 01"
-        case "40":
-            return "C0 00 00 01"
-        case "60":
-            return "C0 00 00 01"
-        case "80":
-            return "C0 00 00 01"
-        case "A0":
-            return "C0 00 00 01"
-        default:
-            return nil
-        }
-    }
+       // Helper structure for Mode 6 test results
+        struct Mode6TestResult {
+           let tid: UInt8
+           let cid: UInt8
+           let value: UInt16
+           let min: UInt16
+           let max: UInt16
+       }
 
     private func handleMode9Command(_ command: String) -> [String] {
         let pid = String(command.dropFirst(2))
@@ -647,5 +871,83 @@ public class MockOBDDataProvider {
         let header = settings.headerOn ? "7E8" : ""
 
         return generateMultiFrameResponse(data: fullData, header: header)
+    }
+}
+
+extension MockOBDDataProvider {
+
+    /// Generate a complete Mode 6 test scenario with various test outcomes
+    func generateComprehensiveMode6TestScenario() -> [String: [Mode6TestResult]] {
+        return [
+            // All passing tests
+            "01": [
+                Mode6TestResult(tid: 0x01, cid: 0x0B, value: 0x01C2, min: 0x0190, max: 0x01F4),
+                Mode6TestResult(tid: 0x02, cid: 0x0B, value: 0x0226, min: 0x01F4, max: 0x0258)
+            ],
+
+            // Mix of passing and marginal
+            "02": [
+                Mode6TestResult(tid: 0x03, cid: 0x10, value: 0x0032, min: 0x0014, max: 0x0064),
+                Mode6TestResult(tid: 0x04, cid: 0x10, value: 0x0063, min: 0x0014, max: 0x0064) // Marginal - close to max
+            ],
+
+            // Contains a failed test
+            "06": [
+                Mode6TestResult(tid: 0x42, cid: 0x8E, value: 0x0BB8, min: 0x03E8, max: 0x09C4) // Failed - exceeds max
+            ],
+
+            // Misfire monitor - all passing
+            "0B": [
+                Mode6TestResult(tid: 0x0B, cid: 0x02, value: 0x0005, min: 0x0000, max: 0x0032),
+                Mode6TestResult(tid: 0x0C, cid: 0x01, value: 0x0002, min: 0x0000, max: 0x000A)
+            ],
+
+            // Catalyst monitor - marginal efficiency
+            "21": [
+                Mode6TestResult(tid: 0x21, cid: 0x1F, value: 0x000F, min: 0x000E, max: 0x0014) // Just above minimum
+            ],
+
+            // EVAP system - all passing
+            "31": [
+                Mode6TestResult(tid: 0x31, cid: 0x99, value: 0x0032, min: 0x0000, max: 0x0064),
+                Mode6TestResult(tid: 0x32, cid: 0x99, value: 0x0014, min: 0x0000, max: 0x0032)
+            ]
+        ]
+    }
+
+    /// Generate random Mode 6 test results for testing
+    func generateRandomMode6Test(tid: UInt8, cid: UInt8) -> Mode6TestResult {
+        let min = UInt16.random(in: 0...1000)
+        let max = min + UInt16.random(in: 100...500)
+
+        // 70% chance of passing, 20% marginal, 10% failed
+        let rand = Int.random(in: 0...100)
+        let value: UInt16
+
+        if rand < 70 {
+            // Passing - comfortably within range
+            let range = max - min
+            value = min + UInt16(Double(range) * Double.random(in: 0.3...0.7))
+        } else if rand < 90 {
+            // Marginal - close to limits
+            if Bool.random() {
+                // Close to minimum
+                value = min + UInt16.random(in: 0...UInt16(Double(max - min) * 0.1))
+            } else {
+                // Close to maximum
+                value = max - UInt16.random(in: 0...UInt16(Double(max - min) * 0.1))
+            }
+        } else {
+            // Failed - outside range
+            if Bool.random() {
+                // Below minimum
+                value = min - UInt16.random(in: 1...100)
+            } else {
+                // Above maximum
+                value = max + UInt16.random(in: 1...100)
+            }
+        }
+
+        return Mode6TestResult(tid: tid, cid: cid, value: value, min: min, max: max)
     }
 }

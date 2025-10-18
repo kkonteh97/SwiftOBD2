@@ -57,7 +57,23 @@ class FullPipelineTests: XCTestCase {
         let successRate = Double(successfulCommands) / Double(allCommands.count)
         XCTAssertGreaterThan(successRate, 0.90, "Pipeline success rate should be > 90%")
     }
-    
+
+    func testSingleCommand() async throws {
+        try await setupELM327()
+
+        let command = OBDCommand.mode6(.MONITOR_O2_B2S1)
+        let result = await testCommandThroughPipeline(command)
+        if let error = result.error {
+            print("Failed: \(String(describing: command.properties.description))\n\(error)")
+            print(result.rawResponse ?? "")
+        } else {
+            print(result.rawResponse ?? "")
+            print(result.decodedResult?.monitorResult ?? "none")
+        }
+        XCTAssertTrue(result.success)
+
+    }
+
     private func setupELM327() async throws {
         // Simulate ELM327 initialization as in production
         let setupResult = try await elm327.setupVehicle(preferredProtocol: nil)
@@ -76,7 +92,8 @@ class FullPipelineTests: XCTestCase {
         do {
             // Step 1: Send command through ELM327 (MockComm)
             let rawResponse = try await elm327.sendCommand(commandString)
-            
+            print(rawResponse)
+
             // Step 2: Parse response through CAN protocol
             guard let canProtocol = elm327.canProtocol else {
                 return PipelineTestResult(
@@ -111,7 +128,8 @@ class FullPipelineTests: XCTestCase {
                     executionTime: CFAbsoluteTimeGetCurrent() - startTime
                 )
             }
-            
+
+
             // Step 3: Decode through command decoder
             let decodedResult = try command.properties.decode(data: messageData, unit: .imperial)
             
@@ -173,7 +191,7 @@ class FullPipelineTests: XCTestCase {
             
             if result.success {
                 XCTAssertNotNil(result.decodedResult, "Should have decoded result")
-                print("✅ \(command.properties.description): \(result.decodedResult?.measurementMonitor.debugDescription ?? result.decodedResult?.troubleCode.debugDescription ?? result.decodedResult?.statusResult.debugDescription ?? "")")
+                print("✅ \(command.properties.description): \(result.decodedResult?.monitorResult.debugDescription ?? result.decodedResult?.troubleCode.debugDescription ?? result.decodedResult?.statusResult.debugDescription ?? "")")
             }
         }
     }

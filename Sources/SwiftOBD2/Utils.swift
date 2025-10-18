@@ -7,17 +7,6 @@
 
 import Foundation
 
-func bytesToInt(_ byteArray: Data) -> Int {
-    var value = 0
-    var power = 0
-
-    for byte in byteArray.reversed() {
-        value += Int(byte) << power
-        power += 8
-    }
-    return value
-}
-
 // enum RESPONSE {
 //
 //    enum ERROR: String {

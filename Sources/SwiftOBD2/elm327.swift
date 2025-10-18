@@ -398,13 +398,14 @@ extension ELM327 {
 
         for pidGetter in pidGetters {
             do {
-                logger.info("Getting supported PIDs for \(pidGetter.properties.command)")
+                logger.info("Checking support: \(pidGetter.properties.description)")
                 let response = try await sendCommand(pidGetter.properties.command)
                 // find first instance of 41 plus command sent, from there we determine the position of everything else
                 // Ex.
                 //        || ||
                 // 7E8 06 41 00 BE 7F B8 13
-                guard let supportedPidsByECU = parseResponse(response) else {
+                guard let ecuData = try? canProtocol?.parse(response).first?.data,
+                        let supportedPidsByECU = try pidGetter.properties.decode(data: ecuData).stringResult else {
                     continue
                 }
 
@@ -422,14 +423,6 @@ extension ELM327 {
 
         // remove duplicates
         return Array(Set(supportedPIDs))
-    }
-
-    private func parseResponse(_ response: [String]) -> Set<String>? {
-        guard let ecuData = try? canProtocol?.parse(response).first?.data else {
-            return nil
-        }
-        let binaryData = BitArray(data: ecuData.dropFirst()).binaryArray
-        return extractSupportedPIDs(binaryData)
     }
 
     func extractSupportedPIDs(_ binaryData: [Int]) -> Set<String> {

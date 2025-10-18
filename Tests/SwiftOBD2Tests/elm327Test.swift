@@ -35,64 +35,64 @@ final class ELM327Test: XCTestCase {
         }
     }
 
-    func testStandardCommandPropertyPerformance() throws {
-        // Method 2: StandardOBDCommand
-        self.measure {
-            for _ in 0..<1000 {
-                let command = StandardOBDCommand.mode01(.rpm)
-                _ = command.command.id
-            }
-        }
-    }
-
-    func testBothCommandPerformances() throws {
-        let iterations = 10000
-
-        print("\n=== Running Performance Tests ===")
-
-        // Test multiple commands to get a broader picture
-        let testCases: [(OBDCommand, StandardOBDCommand)] = [
-            (.mode1(.rpm), .mode01(.rpm)),
-            (.mode1(.speed), .mode01(.speed)),
-            (.mode1(.coolantTemp), .mode01(.coolantTemp)),
-            (.mode1(.engineLoad), .mode01(.engineLoad))
-        ]
-
-        var totalOBDTime: Double = 0
-        var totalStandardTime: Double = 0
-
-        for (obdCmd, stdCmd) in testCases {
-            // OBDCommand timing
-            let start1 = CFAbsoluteTimeGetCurrent()
-            for _ in 0..<iterations {
-                _ = obdCmd.properties.command
-            }
-            let time1 = CFAbsoluteTimeGetCurrent() - start1
-            totalOBDTime += time1
-
-            // StandardOBDCommand timing
-            let start2 = CFAbsoluteTimeGetCurrent()
-            for _ in 0..<iterations {
-                _ = stdCmd.command.id
-            }
-            let time2 = CFAbsoluteTimeGetCurrent() - start2
-            totalStandardTime += time2
-
-            print("\nCommand: \(obdCmd)")
-            print("  OBDCommand: \((time1 / Double(iterations)) * 1_000_000) μs per call")
-            print("  StandardOBDCommand: \((time2 / Double(iterations)) * 1_000_000) μs per call")
-        }
-
-        print("\n=== Overall Results ===")
-        print("Total OBDCommand time: \(totalOBDTime * 1000) ms")
-        print("Total StandardOBDCommand time: \(totalStandardTime * 1000) ms")
-
-        if totalOBDTime < totalStandardTime {
-            print("✅ OBDCommand is \(String(format: "%.2f", totalStandardTime/totalOBDTime))x faster overall")
-        } else {
-            print("✅ StandardOBDCommand is \(String(format: "%.2f", totalOBDTime/totalStandardTime))x faster overall")
-        }
-    }
+//    func testStandardCommandPropertyPerformance() throws {
+//        // Method 2: StandardOBDCommand
+//        self.measure {
+//            for _ in 0..<1000 {
+//                let command = StandardOBDCommand.mode01(.rpm)
+//                _ = command.command.id
+//            }
+//        }
+//    }
+//
+//    func testBothCommandPerformances() throws {
+//        let iterations = 10000
+//
+//        print("\n=== Running Performance Tests ===")
+//
+//        // Test multiple commands to get a broader picture
+//        let testCases: [(OBDCommand, StandardOBDCommand)] = [
+//            (.mode1(.rpm), .mode01(.rpm)),
+//            (.mode1(.speed), .mode01(.speed)),
+//            (.mode1(.coolantTemp), .mode01(.coolantTemp)),
+//            (.mode1(.engineLoad), .mode01(.engineLoad))
+//        ]
+//
+//        var totalOBDTime: Double = 0
+//        var totalStandardTime: Double = 0
+//
+//        for (obdCmd, stdCmd) in testCases {
+//            // OBDCommand timing
+//            let start1 = CFAbsoluteTimeGetCurrent()
+//            for _ in 0..<iterations {
+//                _ = obdCmd.properties.command
+//            }
+//            let time1 = CFAbsoluteTimeGetCurrent() - start1
+//            totalOBDTime += time1
+//
+//            // StandardOBDCommand timing
+//            let start2 = CFAbsoluteTimeGetCurrent()
+//            for _ in 0..<iterations {
+//                _ = stdCmd.command.id
+//            }
+//            let time2 = CFAbsoluteTimeGetCurrent() - start2
+//            totalStandardTime += time2
+//
+//            print("\nCommand: \(obdCmd)")
+//            print("  OBDCommand: \((time1 / Double(iterations)) * 1_000_000) μs per call")
+//            print("  StandardOBDCommand: \((time2 / Double(iterations)) * 1_000_000) μs per call")
+//        }
+//
+//        print("\n=== Overall Results ===")
+//        print("Total OBDCommand time: \(totalOBDTime * 1000) ms")
+//        print("Total StandardOBDCommand time: \(totalStandardTime * 1000) ms")
+//
+//        if totalOBDTime < totalStandardTime {
+//            print("✅ OBDCommand is \(String(format: "%.2f", totalStandardTime/totalOBDTime))x faster overall")
+//        } else {
+//            print("✅ StandardOBDCommand is \(String(format: "%.2f", totalOBDTime/totalStandardTime))x faster overall")
+//        }
+//    }
 
     func testSetupVehicle() {
         // Given
@@ -109,9 +109,9 @@ final class ELM327Test: XCTestCase {
                 XCTAssertEqual(obdInfo.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: obdInfo.obdProtocol))")
 //                XCTAssertEqual(sut.obdProtocol, .protocol6, "Expected obdProtocol to be .protocol6 but got \(String(describing: sut.obdProtocol))")
                 let command = OBDCommand.mode1(.rpm)
-                let command2 = StandardOBDCommand.mode01(.rpm)
+//                let command2 = StandardOBDCommand.mode01(.rpm)
 
-                print(command2.id)
+//                print(command2.id)
                 print(command.properties.command)
 
                 print(command.id)

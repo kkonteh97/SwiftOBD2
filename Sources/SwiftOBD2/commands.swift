@@ -7,33 +7,6 @@
 
 import Foundation
 
-public extension DecodeResult {
-//    var stringResult: String? {
-//        if case let .stringResult(res) = self { return res as String }
-//        return nil
-//    }
-
-    var statusResult: Status? {
-        if case let .statusResult(res) = self { return res as Status }
-        return nil
-    }
-
-    var measurementResult: MeasurementResult? {
-        if case let .measurementResult(res) = self { return res as MeasurementResult }
-        return nil
-    }
-
-    var troubleCode: [TroubleCode]? {
-        if case let .troubleCode(res) = self { return res as [TroubleCode] }
-        return nil
-    }
-
-    var measurementMonitor: Monitor? {
-        if case let .measurementMonitor(res) = self { return res as Monitor }
-        return nil
-    }
-}
-
 public struct CommandProperties: Encodable {
     public let command: String
     public let description: String
@@ -59,32 +32,24 @@ public struct CommandProperties: Encodable {
         self.minValue = minValue
     }
 
-//    public func decode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
-//        return decoder.performDecode(data: data.dropFirst(), unit: unit)
-//    }
-
-    func decode(data: Data, unit: MeasurementUnit = .metric) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit = .metric) throws -> DecodeResult {
         guard let decoderInstance = decoder.getDecoder() else {
-            return .failure(.unsupportedDecoder)
+            throw DecodeError.unsupportedDecoder
         }
-        return decoderInstance.decode(data: data.dropFirst(), unit: unit)
+        return try decoderInstance.decode(data: data.dropFirst(), unit: unit)
     }
 }
 
 public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
-    case general(General)
     case mode1(Mode1)
     case mode3(Mode3)
     case mode6(Mode6)
     case mode9(Mode9)
-    case protocols(Protocols)
-	
-	public var id: Self { return self }
+
+    public var id: Self { return self }
 
     public var properties: CommandProperties {
         switch self {
-        case let .general(command):
-            return command.properties
         case let .mode1(command):
             return command.properties
         case let .mode9(command):
@@ -93,22 +58,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
             return command.properties
         case let .mode3(command):
             return command.properties
-        case let .protocols(command):
-            return command.properties
         }
-    }
-
-    public enum General: CaseIterable, Codable, Comparable {
-        case ATD
-        case ATZ
-        case ATRV
-        case ATL0
-        case ATE0
-        case ATH1
-        case ATH0
-        case ATAT1
-        case ATSTFF
-        case ATDPN
     }
 
     public enum Protocols: CaseIterable, Codable, Comparable {
@@ -376,10 +326,6 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
 
     static public var allCommands: [OBDCommand] = {
         var commands: [OBDCommand] = []
-        for command in OBDCommand.General.allCases {
-            commands.append(.general(command))
-        }
-
         for command in OBDCommand.Mode1.allCases {
             commands.append(.mode1(command))
         }
@@ -395,28 +341,8 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         for command in OBDCommand.Mode9.allCases {
             commands.append(.mode9(command))
         }
-        for command in OBDCommand.Protocols.allCases {
-            commands.append(.protocols(command))
-        }
         return commands
     }()
-}
-
-extension OBDCommand.General {
-    public var properties: CommandProperties {
-        switch self {
-        case .ATD: return CommandProperties("ATD", "Set to default", 5, .none)
-        case .ATZ: return CommandProperties("ATZ", "Reset", 5, .none)
-        case .ATRV: return CommandProperties("ATRV", "Voltage", 5, .none)
-        case .ATL0: return CommandProperties("ATL0", "Linefeeds Off", 5, .none)
-        case .ATE0: return CommandProperties("ATE0", "Echo Off", 5, .none)
-        case .ATH1: return CommandProperties("ATH1", "Headers On", 5, .none)
-        case .ATH0: return CommandProperties("ATH0", "Headers Off", 5, .none)
-        case .ATAT1: return CommandProperties("ATAT1", "Adaptive Timing On", 5, .none)
-        case .ATSTFF: return CommandProperties("ATSTFF", "Set Time to Fast", 5, .none)
-        case .ATDPN: return CommandProperties("ATDPN", "Describe Protocol Number", 5, .none)
-        }
-    }
 }
 
 extension OBDCommand.Mode1 {
@@ -624,260 +550,261 @@ extension OBDCommand {
 }
 
 extension OBDCommand {
-	public var detailedDescription: String? {
-		switch self {
-			case .mode1(let mode1):
-				switch mode1 {
-					case .status: return "Monitor Status of the vehicle's systems"
-					case .freezeDTC: return """
-						The Freeze DTC (Diagnostic Trouble Codes) PID is used to retrieve trouble codes that were stored in the vehicle's ECU (Engine Control Unit) when a fault condition was detected. Specifically, Freeze DTC will provide the trouble codes for faults that triggered the Malfunction Indicator Light (MIL), also known as the Check Engine Light (CEL).
+    public var detailedDescription: String? {
+        switch self {
+            case .mode1(let mode1):
+                switch mode1 {
+                    case .status: return "Monitor Status of the vehicle's systems"
+                    case .freezeDTC: return """
+                        The Freeze DTC (Diagnostic Trouble Codes) PID is used to retrieve trouble codes that were stored in the vehicle's ECU (Engine Control Unit) when a fault condition was detected. Specifically, Freeze DTC will provide the trouble codes for faults that triggered the Malfunction Indicator Light (MIL), also known as the Check Engine Light (CEL).
 
-						These codes represent issues or malfunctions in the vehicle's systems, such as the engine, transmission, emissions controls, and more. The codes are stored in the vehicle's computer memory to help identify what needs to be repaired.
-						"""
-					case .fuelStatus: return """
-						The Fuel Status PID provides information about the fuel system's operating status. Specifically, it indicates whether the engine is running in closed-loop or open-loop operation, and whether the fuel system is in a condition that is optimizing fuel efficiency.
+                        These codes represent issues or malfunctions in the vehicle's systems, such as the engine, transmission, emissions controls, and more. The codes are stored in the vehicle's computer memory to help identify what needs to be repaired.
+                        """
+                    case .fuelStatus: return """
+                        The Fuel Status PID provides information about the fuel system's operating status. Specifically, it indicates whether the engine is running in closed-loop or open-loop operation, and whether the fuel system is in a condition that is optimizing fuel efficiency.
 
-						This data is important because it helps determine how efficiently the engine is operating and if it's using the correct air-fuel ratio based on the engine's operating conditions.
-						"""
-					case .engineLoad: return """
-						The Fuel Status PID provides information about the fuel system's operating status. Specifically, it indicates whether the engine is running in closed-loop or open-loop operation, and whether the fuel system is in a condition that is optimizing fuel efficiency.
+                        This data is important because it helps determine how efficiently the engine is operating and if it's using the correct air-fuel ratio based on the engine's operating conditions.
+                        """
+                    case .engineLoad: return """
+                        The Fuel Status PID provides information about the fuel system's operating status. Specifically, it indicates whether the engine is running in closed-loop or open-loop operation, and whether the fuel system is in a condition that is optimizing fuel efficiency.
 
-						This data is important because it helps determine how efficiently the engine is operating and if it's using the correct air-fuel ratio based on the engine's operating conditions.
-						"""
-					case .coolantTemp: return """
-						The Coolant Temperature PID provides the current temperature of the engine's coolant. This is an important parameter because the engine's cooling system regulates the engine temperature to prevent overheating and to optimize fuel efficiency. The coolant temperature can affect engine performance, fuel efficiency, and emissions.
-						"""
-					case .shortFuelTrim1: return """
-						The Short Term Fuel Trim 1 (STFT1) PID provides the short-term adjustment the engine control unit (ECU) makes to the fuel injector pulse width in response to real-time feedback from the oxygen sensor. This adjustment is used to correct the air-fuel mixture (the ratio of air to fuel) for optimal combustion.
+                        This data is important because it helps determine how efficiently the engine is operating and if it's using the correct air-fuel ratio based on the engine's operating conditions.
+                        """
+                    case .coolantTemp: return """
+                        The Coolant Temperature PID provides the current temperature of the engine's coolant. This is an important parameter because the engine's cooling system regulates the engine temperature to prevent overheating and to optimize fuel efficiency. The coolant temperature can affect engine performance, fuel efficiency, and emissions.
+                        """
+                    case .shortFuelTrim1: return """
+                        The Short Term Fuel Trim 1 (STFT1) PID provides the short-term adjustment the engine control unit (ECU) makes to the fuel injector pulse width in response to real-time feedback from the oxygen sensor. This adjustment is used to correct the air-fuel mixture (the ratio of air to fuel) for optimal combustion.
 
-						STFT1 refers to Bank 1, Sensor 1 — the upstream oxygen sensor, which is located before the catalytic converter.
-						"""
-					case .longFuelTrim1: return """
-						The Long Term Fuel Trim 1 (LTFT1) PID provides the long-term adjustment made by the engine control unit (ECU) to the fuel injection system based on sustained trends over time. Unlike Short Term Fuel Trim (STFT), which adjusts in real-time, LTFT1 reflects cumulative changes made to the fuel mixture to address consistent deviations from the ideal air-fuel ratio.
+                        STFT1 refers to Bank 1, Sensor 1 — the upstream oxygen sensor, which is located before the catalytic converter.
+                        """
+                    case .longFuelTrim1: return """
+                        The Long Term Fuel Trim 1 (LTFT1) PID provides the long-term adjustment made by the engine control unit (ECU) to the fuel injection system based on sustained trends over time. Unlike Short Term Fuel Trim (STFT), which adjusts in real-time, LTFT1 reflects cumulative changes made to the fuel mixture to address consistent deviations from the ideal air-fuel ratio.
 
-						LTFT1 refers to Bank 1, Sensor 1 — the upstream oxygen sensor for Bank 1 (the side of the engine that typically includes cylinder 1).
-						"""
-					case .shortFuelTrim2: return """
-						The Short Term Fuel Trim 2 (STFT2) PID provides the short-term adjustment to the fuel system for Bank 2 (the opposite side of the engine from Bank 1) based on feedback from the upstream oxygen sensor (O2 sensor). This adjustment helps the engine maintain an optimal air-fuel ratio for combustion in real-time.
+                        LTFT1 refers to Bank 1, Sensor 1 — the upstream oxygen sensor for Bank 1 (the side of the engine that typically includes cylinder 1).
+                        """
+                    case .shortFuelTrim2: return """
+                        The Short Term Fuel Trim 2 (STFT2) PID provides the short-term adjustment to the fuel system for Bank 2 (the opposite side of the engine from Bank 1) based on feedback from the upstream oxygen sensor (O2 sensor). This adjustment helps the engine maintain an optimal air-fuel ratio for combustion in real-time.
 
-						STFT2 is similar to STFT1, but it pertains to Bank 2, and it represents the engine’s short-term response to changes in air-fuel ratio based on sensor feedback.
-						"""
-					case .longFuelTrim2: return """
-						The Long Term Fuel Trim 2 (LTFT2) PID provides the long-term adjustment the engine control unit (ECU) makes to the fuel injector pulse width in response to persistent trends in the air-fuel mixture over time. Unlike the Short Term Fuel Trim (STFT), which adjusts in real-time, LTFT represents a cumulative, long-term correction to fuel delivery, reflecting ongoing conditions.
+                        STFT2 is similar to STFT1, but it pertains to Bank 2, and it represents the engine’s short-term response to changes in air-fuel ratio based on sensor feedback.
+                        """
+                    case .longFuelTrim2: return """
+                        The Long Term Fuel Trim 2 (LTFT2) PID provides the long-term adjustment the engine control unit (ECU) makes to the fuel injector pulse width in response to persistent trends in the air-fuel mixture over time. Unlike the Short Term Fuel Trim (STFT), which adjusts in real-time, LTFT represents a cumulative, long-term correction to fuel delivery, reflecting ongoing conditions.
 
-						LTFT2 refers to Bank 2, Sensor 1 — the upstream oxygen sensor for Bank 2 (the side of the engine opposite to Bank 1, which is typically determined by cylinder numbering in the engine).
-						"""
-					case .fuelPressure: return """
-						Shows the fuel rail pressure. 
-						
-						Normal Range: Typically between 300–450 kPa depending on the vehicle and operating conditions. 
-						Low or high fuel pressure can indicate issues with the fuel pump, fuel filter, or fuel injectors.
-						"""
-					case .intakePressure: return """
-						Indicates intake manifold pressure.
-						
-						Normal Range: Typically around 20–100 kPa at idle, depending on altitude and engine load.
-						Low values usually mean a vacuum is being created in the manifold (idle or light load).
-						High values indicate high intake pressures, which happen when the throttle is wide open or under heavy load.
-						"""
-					case .rpm: return "The Engine RPM PID provides the current revolutions per minute (RPM) of the engine, indicating how fast the engine's crankshaft is rotating. This is a key parameter for monitoring engine performance and efficiency."
-					case .speed: return "The Vehicle Speed PID provides the current speed of the vehicle, typically in kilometers per hour (km/h) or miles per hour (mph), depending on the vehicle's configuration."
-					case .timingAdvance: return """
-						Shows ignition timing advance.
-						
-						Positive values (e.g., +5°) = advanced timing, which improves performance and efficiency.
-						Negative values = retarded timing, typically to prevent knocking or because of high load conditions.
-						Normal values typically range from +10° to -10° (depending on load, engine speed, and conditions).
-						"""
-					case .intakeTemp: return """
-						Shows intake air temperature.
-						
-						Cold air is denser, improving combustion efficiency and power, so lower intake temperatures (e.g., under 20°C) are generally better for performance.
-						High intake temperatures (e.g., over 40°C) can reduce engine performance and efficiency, especially under heavy load.
-						"""
-					case .maf: return """
-						Shows the mass air flow (in g/s).
-						
-						MAF measures the amount of air entering the engine, which the ECU uses to determine the right amount of fuel to inject.
-						Low MAF readings could indicate issues with the air intake system (e.g., clogged air filter).
-						High MAF readings are common under heavy acceleration or high load.
-						"""
-					case .throttlePos: return """
-						Shows the throttle position as a percentage.
-						
-						0% = Throttle is closed (idle or off)
-						100% = Throttle is fully open (wide open throttle or WOT)
-						Normal driving conditions will vary, but you'll often see values between 10-50% during normal driving.
-						"""
-					case .airStatus: return """
-						This is related to the status of the air intake system, which helps in monitoring air quality and air flow for optimal combustion.
-						"""
-					case .O2Sensor: return """
-						Oxygen sensors (also called O2 sensors) measure the amount of oxygen in the exhaust gases, which helps the engine control unit (ECU) adjust the air-fuel mixture for optimal combustion.
-						
-						Wideband O2 sensors: Voltage range typically from 0 to 5V. Higher voltage indicates a richer mixture, while lower voltage indicates a leaner mixture.
-						Narrowband O2 sensors: Typically fluctuate between 0.1V (lean) and 0.9V (rich).
-						Normal Range (for narrowband O2 sensor):
-						0.1V - 0.9V: Normal sensor behavior (lean to rich conditions)
-						"""
-					case .O2Bank1Sensor1: return "The Oxygen Sensor Bank 1, Sensor 1 PID provides the data from the first oxygen sensor located before the catalytic converter (also called the pre-catalytic converter O2 sensor) on Bank 1 of the engine. Bank 1 refers to the side of the engine where cylinder #1 is located, and this sensor is critical for monitoring the air-fuel mixture and ensuring proper emissions control."
-					case .O2Bank1Sensor2: return "The Oxygen Sensor Bank 1, Sensor 2 PID provides the data from the second oxygen sensor located after the catalytic converter on Bank 1 of the engine. This sensor is often referred to as the post-catalytic converter O2 sensor or downstream O2 sensor. It plays a crucial role in monitoring the performance of the catalytic converter and ensuring it is properly filtering the exhaust gases."
-					case .O2Bank1Sensor3: return "The Oxygen Sensor Bank 1, Sensor 3 PID is not part of the standard OBD-II PIDs and generally does not exist for typical gasoline vehicles. The OBD-II standard generally only defines PIDs for upstream (pre-catalytic converter) and downstream (post-catalytic converter) oxygen sensors for each bank."
-					case .O2Bank1Sensor4: return "Similar to Oxygen Sensor Bank 1, Sensor 3, the Oxygen Sensor Bank 1, Sensor 4 PID does not exist as part of the standard OBD-II PIDs. The OBD-II standard typically provides only two oxygen sensors per bank: one before (upstream) and one after (downstream) the catalytic converter."
-					case .O2Bank2Sensor1: return """
-						The Oxygen Sensor Bank 2, Sensor 1 PID provides data from the first oxygen sensor located before the catalytic converter (pre-catalytic converter O2 sensor) on Bank 2 of the engine. Bank 2 refers to the side of the engine opposite to Bank 1 (the side where cylinder #1 is located).
+                        LTFT2 refers to Bank 2, Sensor 1 — the upstream oxygen sensor for Bank 2 (the side of the engine opposite to Bank 1, which is typically determined by cylinder numbering in the engine).
+                        """
+                    case .fuelPressure: return """
+                        Shows the fuel rail pressure. 
+                        
+                        Normal Range: Typically between 300–450 kPa depending on the vehicle and operating conditions. 
+                        Low or high fuel pressure can indicate issues with the fuel pump, fuel filter, or fuel injectors.
+                        """
+                    case .intakePressure: return """
+                        Indicates intake manifold pressure.
+                        
+                        Normal Range: Typically around 20–100 kPa at idle, depending on altitude and engine load.
+                        Low values usually mean a vacuum is being created in the manifold (idle or light load).
+                        High values indicate high intake pressures, which happen when the throttle is wide open or under heavy load.
+                        """
+                    case .rpm: return "The Engine RPM PID provides the current revolutions per minute (RPM) of the engine, indicating how fast the engine's crankshaft is rotating. This is a key parameter for monitoring engine performance and efficiency."
+                    case .speed: return "The Vehicle Speed PID provides the current speed of the vehicle, typically in kilometers per hour (km/h) or miles per hour (mph), depending on the vehicle's configuration."
+                    case .timingAdvance: return """
+                        Shows ignition timing advance.
+                        
+                        Positive values (e.g., +5°) = advanced timing, which improves performance and efficiency.
+                        Negative values = retarded timing, typically to prevent knocking or because of high load conditions.
+                        Normal values typically range from +10° to -10° (depending on load, engine speed, and conditions).
+                        """
+                    case .intakeTemp: return """
+                        Shows intake air temperature.
+                        
+                        Cold air is denser, improving combustion efficiency and power, so lower intake temperatures (e.g., under 20°C) are generally better for performance.
+                        High intake temperatures (e.g., over 40°C) can reduce engine performance and efficiency, especially under heavy load.
+                        """
+                    case .maf: return """
+                        Shows the mass air flow (in g/s).
+                        
+                        MAF measures the amount of air entering the engine, which the ECU uses to determine the right amount of fuel to inject.
+                        Low MAF readings could indicate issues with the air intake system (e.g., clogged air filter).
+                        High MAF readings are common under heavy acceleration or high load.
+                        """
+                    case .throttlePos: return """
+                        Shows the throttle position as a percentage.
+                        
+                        0% = Throttle is closed (idle or off)
+                        100% = Throttle is fully open (wide open throttle or WOT)
+                        Normal driving conditions will vary, but you'll often see values between 10-50% during normal driving.
+                        """
+                    case .airStatus: return """
+                        This is related to the status of the air intake system, which helps in monitoring air quality and air flow for optimal combustion.
+                        """
+                    case .O2Sensor: return """
+                        Oxygen sensors (also called O2 sensors) measure the amount of oxygen in the exhaust gases, which helps the engine control unit (ECU) adjust the air-fuel mixture for optimal combustion.
+                        
+                        Wideband O2 sensors: Voltage range typically from 0 to 5V. Higher voltage indicates a richer mixture, while lower voltage indicates a leaner mixture.
+                        Narrowband O2 sensors: Typically fluctuate between 0.1V (lean) and 0.9V (rich).
+                        Normal Range (for narrowband O2 sensor):
+                        0.1V - 0.9V: Normal sensor behavior (lean to rich conditions)
+                        """
+                    case .O2Bank1Sensor1: return "The Oxygen Sensor Bank 1, Sensor 1 PID provides the data from the first oxygen sensor located before the catalytic converter (also called the pre-catalytic converter O2 sensor) on Bank 1 of the engine. Bank 1 refers to the side of the engine where cylinder #1 is located, and this sensor is critical for monitoring the air-fuel mixture and ensuring proper emissions control."
+                    case .O2Bank1Sensor2: return "The Oxygen Sensor Bank 1, Sensor 2 PID provides the data from the second oxygen sensor located after the catalytic converter on Bank 1 of the engine. This sensor is often referred to as the post-catalytic converter O2 sensor or downstream O2 sensor. It plays a crucial role in monitoring the performance of the catalytic converter and ensuring it is properly filtering the exhaust gases."
+                    case .O2Bank1Sensor3: return "The Oxygen Sensor Bank 1, Sensor 3 PID is not part of the standard OBD-II PIDs and generally does not exist for typical gasoline vehicles. The OBD-II standard generally only defines PIDs for upstream (pre-catalytic converter) and downstream (post-catalytic converter) oxygen sensors for each bank."
+                    case .O2Bank1Sensor4: return "Similar to Oxygen Sensor Bank 1, Sensor 3, the Oxygen Sensor Bank 1, Sensor 4 PID does not exist as part of the standard OBD-II PIDs. The OBD-II standard typically provides only two oxygen sensors per bank: one before (upstream) and one after (downstream) the catalytic converter."
+                    case .O2Bank2Sensor1: return """
+                        The Oxygen Sensor Bank 2, Sensor 1 PID provides data from the first oxygen sensor located before the catalytic converter (pre-catalytic converter O2 sensor) on Bank 2 of the engine. Bank 2 refers to the side of the engine opposite to Bank 1 (the side where cylinder #1 is located).
 
-						This upstream O2 sensor plays a critical role in monitoring the air-fuel mixture and sending feedback to the ECU (Engine Control Unit) to adjust fuel delivery for optimal combustion.
-						"""
-					case .O2Bank2Sensor2: return """
-						The Oxygen Sensor Bank 2, Sensor 2 PID provides data from the second oxygen sensor located after the catalytic converter (post-catalytic converter O2 sensor) on Bank 2 of the engine. This sensor is also referred to as the downstream O2 sensor and is crucial for monitoring the efficiency of the catalytic converter.
+                        This upstream O2 sensor plays a critical role in monitoring the air-fuel mixture and sending feedback to the ECU (Engine Control Unit) to adjust fuel delivery for optimal combustion.
+                        """
+                    case .O2Bank2Sensor2: return """
+                        The Oxygen Sensor Bank 2, Sensor 2 PID provides data from the second oxygen sensor located after the catalytic converter (post-catalytic converter O2 sensor) on Bank 2 of the engine. This sensor is also referred to as the downstream O2 sensor and is crucial for monitoring the efficiency of the catalytic converter.
 
-						It measures the oxygen content in the exhaust gases after the gases have passed through the catalytic converter, which allows the ECU to determine if the catalytic converter is performing correctly in reducing emissions.
-						"""
-					case .O2Bank2Sensor3: return """
-						Similar to Bank 1, Sensor 3, the Oxygen Sensor Bank 2, Sensor 3 PID is not part of the standard OBD-II PIDs. The standard OBD-II system typically provides support for two oxygen sensors per bank:
-						Upstream sensor (Sensor 1): Before the catalytic converter (pre-catalytic converter).
-						Downstream sensor (Sensor 2): After the catalytic converter (post-catalytic converter).
-						"""
-					case .O2Bank2Sensor4: return """
-						Similar to Oxygen Sensor Bank 2, Sensor 3, the Oxygen Sensor Bank 2, Sensor 4 PID is not part of the standard OBD-II PIDs. The OBD-II standard typically provides support for two oxygen sensors per bank — one upstream (before the catalytic converter) and one downstream (after the catalytic converter).
-						"""
-					case .obdcompliance: return "OBD Compliance typically refers to a vehicle’s readiness to pass emissions testing."
-					case .auxInputStatus: return """
-						"Auxiliary Input Status isn't typically a standard OBD-II PID but might relate to manufacturer-specific diagnostics or custom sensor readings.
-						You would need the manufacturer-specific PID to access data related to these systems.
-						"""
-					case .runTime: return """
-						Shows engine run time since the last reset or ignition cycle.
-						
-						Engine Run Time is useful for tracking how long the engine has been operating, especially for maintenance schedules, troubleshooting idle issues, or verifying engine performance.
-						It also resets to zero each time the ignition is turned off and back on.
-						"""
-					case .distanceWMIL: return """
-						Distance Since MIL (Malfunction Indicator Light) Was Last Cleared — a useful diagnostic parameter that tracks how many miles (or kilometers) the vehicle has driven since the MIL (check engine light) was last reset or turned off. 
-						
-						This can help you understand how long the vehicle has been operating with potential engine issues since the MIL was last cleared.
-						The MIL (check engine light) is typically triggered when there is a malfunction in the engine or emissions system.
-						Distance since MIL tells you how much distance has been driven since the problem was last cleared/reset.
-						This is useful for tracking how much time or distance has passed since the vehicle last encountered a fault that triggered the check engine light.
-						"""
-					case .EGRError: return """
-						The term EGR Error refers to a malfunction or issue with the Exhaust Gas Recirculation (EGR) system.
-						
-						The EGR system helps reduce nitrogen oxide (NOx) emissions by recirculating a portion of the exhaust gases back into the intake air to lower combustion temperatures. When the EGR system isn't functioning properly, it can trigger a fault code and cause the Check Engine Light (MIL) to illuminate.
-						"""
-					case .evaporativePurge: return """
-						The Evaporative Purge refers to the evaporative emission control system (EVAP), which is responsible for managing and purging fuel vapors from the fuel tank. The system captures fuel vapors from the tank and sends them to the engine to be burned, rather than allowing them to escape into the atmosphere.
+                        It measures the oxygen content in the exhaust gases after the gases have passed through the catalytic converter, which allows the ECU to determine if the catalytic converter is performing correctly in reducing emissions.
+                        """
+                    case .O2Bank2Sensor3: return """
+                        Similar to Bank 1, Sensor 3, the Oxygen Sensor Bank 2, Sensor 3 PID is not part of the standard OBD-II PIDs. The standard OBD-II system typically provides support for two oxygen sensors per bank:
+                        Upstream sensor (Sensor 1): Before the catalytic converter (pre-catalytic converter).
+                        Downstream sensor (Sensor 2): After the catalytic converter (post-catalytic converter).
+                        """
+                    case .O2Bank2Sensor4: return """
+                        Similar to Oxygen Sensor Bank 2, Sensor 3, the Oxygen Sensor Bank 2, Sensor 4 PID is not part of the standard OBD-II PIDs. The OBD-II standard typically provides support for two oxygen sensors per bank — one upstream (before the catalytic converter) and one downstream (after the catalytic converter).
+                        """
+                    case .obdcompliance: return "OBD Compliance typically refers to a vehicle’s readiness to pass emissions testing."
+                    case .auxInputStatus: return """
+                        "Auxiliary Input Status isn't typically a standard OBD-II PID but might relate to manufacturer-specific diagnostics or custom sensor readings.
+                        You would need the manufacturer-specific PID to access data related to these systems.
+                        """
+                    case .runTime: return """
+                        Shows engine run time since the last reset or ignition cycle.
+                        
+                        Engine Run Time is useful for tracking how long the engine has been operating, especially for maintenance schedules, troubleshooting idle issues, or verifying engine performance.
+                        It also resets to zero each time the ignition is turned off and back on.
+                        """
+                    case .distanceWMIL: return """
+                        Distance Since MIL (Malfunction Indicator Light) Was Last Cleared — a useful diagnostic parameter that tracks how many miles (or kilometers) the vehicle has driven since the MIL (check engine light) was last reset or turned off. 
+                        
+                        This can help you understand how long the vehicle has been operating with potential engine issues since the MIL was last cleared.
+                        The MIL (check engine light) is typically triggered when there is a malfunction in the engine or emissions system.
+                        Distance since MIL tells you how much distance has been driven since the problem was last cleared/reset.
+                        This is useful for tracking how much time or distance has passed since the vehicle last encountered a fault that triggered the check engine light.
+                        """
+                    case .EGRError: return """
+                        The term EGR Error refers to a malfunction or issue with the Exhaust Gas Recirculation (EGR) system.
+                        
+                        The EGR system helps reduce nitrogen oxide (NOx) emissions by recirculating a portion of the exhaust gases back into the intake air to lower combustion temperatures. When the EGR system isn't functioning properly, it can trigger a fault code and cause the Check Engine Light (MIL) to illuminate.
+                        """
+                    case .evaporativePurge: return """
+                        The Evaporative Purge refers to the evaporative emission control system (EVAP), which is responsible for managing and purging fuel vapors from the fuel tank. The system captures fuel vapors from the tank and sends them to the engine to be burned, rather than allowing them to escape into the atmosphere.
 
-						The Evaporative Purge process involves the purge valve, which is controlled by the engine control unit (ECU) to allow the fuel vapors to flow into the engine when needed.
-						"""
-					case .fuelLevel: return """
-						The Fuel Level parameter provides the current amount of fuel in the vehicle’s tank, typically expressed as a percentage of the tank’s full capacity. This reading helps the engine control unit (ECU) and the driver monitor the available fuel.
-						"""
-					case .warmUpsSinceDTCCleared: return """
-						The Warm-ups Since DTC Cleared parameter refers to the number of engine warm-up cycles that have occurred since the Diagnostic Trouble Codes (DTCs) were last cleared. A warm-up cycle is typically counted when the engine goes from a cold start to reaching its normal operating temperature.
+                        The Evaporative Purge process involves the purge valve, which is controlled by the engine control unit (ECU) to allow the fuel vapors to flow into the engine when needed.
+                        """
+                    case .fuelLevel: return """
+                        The Fuel Level parameter provides the current amount of fuel in the vehicle’s tank, typically expressed as a percentage of the tank’s full capacity. This reading helps the engine control unit (ECU) and the driver monitor the available fuel.
+                        """
+                    case .warmUpsSinceDTCCleared: return """
+                        The Warm-ups Since DTC Cleared parameter refers to the number of engine warm-up cycles that have occurred since the Diagnostic Trouble Codes (DTCs) were last cleared. A warm-up cycle is typically counted when the engine goes from a cold start to reaching its normal operating temperature.
 
-						This count is important because many vehicle systems, especially those related to emissions control, may perform self-diagnostics during the warm-up phase. These systems might not show faults (DTCs) until the engine has had a chance to warm up and reach certain operational conditions.
-						"""
-					case .distanceSinceDTCCleared: return """
-						The Distance Since DTC Cleared parameter refers to the number of miles (or kilometers) the vehicle has traveled since the Diagnostic Trouble Codes (DTCs) were last cleared. This value can be helpful for determining how much driving has occurred since a fault was last reset in the vehicle's engine control unit (ECU), providing context for how long a problem has persisted.
-						"""
-					case .evapVaporPressure: return """
-						The Evap Vapor Pressure refers to the pressure within the evaporative emission control system (EVAP). This system captures and stores fuel vapors from the fuel tank to prevent them from escaping into the atmosphere. The Evaporative Vapor Pressure is a critical parameter that the vehicle’s ECU monitors to ensure the EVAP system is functioning correctly. It helps to check for potential issues, such as leaks or improper pressure in the fuel system, which could lead to emissions problems.
+                        This count is important because many vehicle systems, especially those related to emissions control, may perform self-diagnostics during the warm-up phase. These systems might not show faults (DTCs) until the engine has had a chance to warm up and reach certain operational conditions.
+                        """
+                    case .distanceSinceDTCCleared: return """
+                        The Distance Since DTC Cleared parameter refers to the number of miles (or kilometers) the vehicle has traveled since the Diagnostic Trouble Codes (DTCs) were last cleared. This value can be helpful for determining how much driving has occurred since a fault was last reset in the vehicle's engine control unit (ECU), providing context for how long a problem has persisted.
+                        """
+                    case .evapVaporPressure: return """
+                        The Evap Vapor Pressure refers to the pressure within the evaporative emission control system (EVAP). This system captures and stores fuel vapors from the fuel tank to prevent them from escaping into the atmosphere. The Evaporative Vapor Pressure is a critical parameter that the vehicle’s ECU monitors to ensure the EVAP system is functioning correctly. It helps to check for potential issues, such as leaks or improper pressure in the fuel system, which could lead to emissions problems.
 
-						This pressure is measured by a vapor pressure sensor in the EVAP system. If the pressure is too high or too low, it can indicate a malfunction, like a blocked vent valve, a faulty pressure sensor, or an EVAP system leak.
-						"""
-					case .barometricPressure: return """
-						The Barometric Pressure refers to the atmospheric pressure at a given location, measured in kilopascals (kPa) or inches of mercury (inHg). In OBD-II systems, this pressure reading is used by the engine control unit (ECU) for various calculations, including air-fuel ratio adjustments and altitude compensation.
+                        This pressure is measured by a vapor pressure sensor in the EVAP system. If the pressure is too high or too low, it can indicate a malfunction, like a blocked vent valve, a faulty pressure sensor, or an EVAP system leak.
+                        """
+                    case .barometricPressure: return """
+                        The Barometric Pressure refers to the atmospheric pressure at a given location, measured in kilopascals (kPa) or inches of mercury (inHg). In OBD-II systems, this pressure reading is used by the engine control unit (ECU) for various calculations, including air-fuel ratio adjustments and altitude compensation.
 
-						Barometric pressure plays a role in how the ECU calculates other parameters, such as air intake, fuel mixture, and engine load. Since atmospheric pressure decreases with altitude, the ECU uses the barometric pressure reading to adjust for changes in altitude during operation.
-						"""
-					case .catalystTempB1S1: return """
-						The Catalyst Temperature (B1S1) refers to the temperature of the catalytic converter in Bank 1, Sensor 1. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
-						"""
-					case .catalystTempB2S1: return """
-						The Catalyst Temperature (B2S1) refers to the temperature of the catalytic converter in Bank 2, Sensor 1. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
-						"""
-					case .catalystTempB1S2: return """
-						The Catalyst Temperature (B1S2) refers to the temperature of the catalytic converter in Bank 1, Sensor 2. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
-						"""
-					case .catalystTempB2S2: return """
-						The Catalyst Temperature (B1S2) refers to the temperature of the catalytic converter in Bank 2, Sensor 2. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
-						"""
-					case .statusDriveCycle: return """
-						The Status of the Drive Cycle is a diagnostic parameter that indicates the current state of the vehicle’s drive cycle. A drive cycle refers to a specific sequence of driving conditions required to allow the vehicle's onboard diagnostic (OBD) system to perform self-tests and verify that various components and systems, such as the catalytic converter, oxygen sensors, and evaporative emissions system, are functioning properly.
+                        Barometric pressure plays a role in how the ECU calculates other parameters, such as air intake, fuel mixture, and engine load. Since atmospheric pressure decreases with altitude, the ECU uses the barometric pressure reading to adjust for changes in altitude during operation.
+                        """
+                    case .catalystTempB1S1: return """
+                        The Catalyst Temperature (B1S1) refers to the temperature of the catalytic converter in Bank 1, Sensor 1. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
+                        """
+                    case .catalystTempB2S1: return """
+                        The Catalyst Temperature (B2S1) refers to the temperature of the catalytic converter in Bank 2, Sensor 1. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
+                        """
+                    case .catalystTempB1S2: return """
+                        The Catalyst Temperature (B1S2) refers to the temperature of the catalytic converter in Bank 1, Sensor 2. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
+                        """
+                    case .catalystTempB2S2: return """
+                        The Catalyst Temperature (B1S2) refers to the temperature of the catalytic converter in Bank 2, Sensor 2. The catalytic converter helps reduce harmful emissions by converting toxic gases such as carbon monoxide (CO), hydrocarbons (HC), and nitrogen oxides (NOx) into less harmful substances. The temperature of the catalyst is crucial for its efficiency and effectiveness in this process.
+                        """
+                    case .statusDriveCycle: return """
+                        The Status of the Drive Cycle is a diagnostic parameter that indicates the current state of the vehicle’s drive cycle. A drive cycle refers to a specific sequence of driving conditions required to allow the vehicle's onboard diagnostic (OBD) system to perform self-tests and verify that various components and systems, such as the catalytic converter, oxygen sensors, and evaporative emissions system, are functioning properly.
 
-						During a drive cycle, the OBD system checks if certain conditions have been met to test components like the catalytic converter, oxygen sensors, and other critical emissions components. The status of the drive cycle helps inform if all tests have been completed successfully or if certain tests are still pending.
-						"""
-					case .controlModuleVoltage: return """
-						The Control Module Voltage refers to the voltage supplied to the engine control module (ECM) or powertrain control module (PCM). These control modules are responsible for managing various engine functions, such as fuel injection, ignition timing, and emissions control. The control module requires a stable voltage supply to ensure proper operation.
+                        During a drive cycle, the OBD system checks if certain conditions have been met to test components like the catalytic converter, oxygen sensors, and other critical emissions components. The status of the drive cycle helps inform if all tests have been completed successfully or if certain tests are still pending.
+                        """
+                    case .controlModuleVoltage: return """
+                        The Control Module Voltage refers to the voltage supplied to the engine control module (ECM) or powertrain control module (PCM). These control modules are responsible for managing various engine functions, such as fuel injection, ignition timing, and emissions control. The control module requires a stable voltage supply to ensure proper operation.
 
-						If the voltage to the control module is too low or too high, it can lead to issues with engine performance, poor fuel efficiency, or even cause malfunctioning of sensors and other systems controlled by the module. Monitoring this voltage is essential to ensure the vehicle’s systems are operating within the proper electrical parameters.
-						"""
-					case .absoluteLoad: return """
-						The Absolute Load is a measure of the engine's load in relation to the maximum load it is capable of handling. It reflects the engine’s power demand based on factors such as throttle position, engine speed (RPM), and air intake. The absolute load is useful for understanding the strain on the engine at any given moment, helping diagnose performance issues, fuel efficiency, and emissions.
+                        If the voltage to the control module is too low or too high, it can lead to issues with engine performance, poor fuel efficiency, or even cause malfunctioning of sensors and other systems controlled by the module. Monitoring this voltage is essential to ensure the vehicle’s systems are operating within the proper electrical parameters.
+                        """
+                    case .absoluteLoad: return """
+                        The Absolute Load is a measure of the engine's load in relation to the maximum load it is capable of handling. It reflects the engine’s power demand based on factors such as throttle position, engine speed (RPM), and air intake. The absolute load is useful for understanding the strain on the engine at any given moment, helping diagnose performance issues, fuel efficiency, and emissions.
 
-						Absolute Load is typically given as a percentage of the maximum possible engine load (i.e., the maximum load the engine could handle at full throttle under ideal conditions).
-						"""
-					case .commandedEquivRatio: return """
-						The Commanded Equivalence Ratio is a measure used by the engine control unit (ECU) to adjust the air-fuel mixture in the engine. It represents the target air-fuel ratio the ECU is trying to achieve, which is typically used to optimize engine performance and reduce emissions.
+                        Absolute Load is typically given as a percentage of the maximum possible engine load (i.e., the maximum load the engine could handle at full throttle under ideal conditions).
+                        """
+                    case .commandedEquivRatio: return """
+                        The Commanded Equivalence Ratio is a measure used by the engine control unit (ECU) to adjust the air-fuel mixture in the engine. It represents the target air-fuel ratio the ECU is trying to achieve, which is typically used to optimize engine performance and reduce emissions.
 
-						In an internal combustion engine, the air-fuel ratio is crucial for combustion efficiency. The equivalence ratio is the ratio of the actual air-fuel ratio to the stoichiometric air-fuel ratio, which is the ideal ratio for complete combustion. The stoichiometric ratio for gasoline is typically 14.7:1 (14.7 parts air to 1 part fuel), meaning that when the air-fuel ratio is at this point, the engine is burning all the fuel with all the available oxygen.
+                        In an internal combustion engine, the air-fuel ratio is crucial for combustion efficiency. The equivalence ratio is the ratio of the actual air-fuel ratio to the stoichiometric air-fuel ratio, which is the ideal ratio for complete combustion. The stoichiometric ratio for gasoline is typically 14.7:1 (14.7 parts air to 1 part fuel), meaning that when the air-fuel ratio is at this point, the engine is burning all the fuel with all the available oxygen.
 
-						Commanded Equivalence Ratio < 1: Indicates a lean mixture, where there is more air than needed for the fuel.
-						Commanded Equivalence Ratio > 1: Indicates a rich mixture, where there is more fuel than needed for the available air.
+                        Commanded Equivalence Ratio < 1: Indicates a lean mixture, where there is more air than needed for the fuel.
+                        Commanded Equivalence Ratio > 1: Indicates a rich mixture, where there is more fuel than needed for the available air.
 
-						The commanded equivalence ratio is used by the ECU to fine-tune fuel delivery based on sensor readings, such as oxygen sensors or mass air flow (MAF) sensors, in order to optimize engine performance and emissions.
-						"""
-					case .relativeThrottlePos: return """
-						The Relative Throttle Position is a parameter that indicates the current position of the throttle valve in the intake system relative to the maximum throttle position. This value is crucial for understanding how much the throttle is being opened, which directly affects the amount of air entering the engine and, in turn, the engine's power output.
+                        The commanded equivalence ratio is used by the ECU to fine-tune fuel delivery based on sensor readings, such as oxygen sensors or mass air flow (MAF) sensors, in order to optimize engine performance and emissions.
+                        """
+                    case .relativeThrottlePos: return """
+                        The Relative Throttle Position is a parameter that indicates the current position of the throttle valve in the intake system relative to the maximum throttle position. This value is crucial for understanding how much the throttle is being opened, which directly affects the amount of air entering the engine and, in turn, the engine's power output.
 
-						A 0% throttle means the throttle valve is fully closed (idle or minimal acceleration).
-						A 100% throttle means the throttle valve is fully open (wide-open throttle or full acceleration).
+                        A 0% throttle means the throttle valve is fully closed (idle or minimal acceleration).
+                        A 100% throttle means the throttle valve is fully open (wide-open throttle or full acceleration).
 
-						This value is often used by the engine control unit (ECU) to adjust fuel delivery and ignition timing for optimal performance, emissions control, and fuel efficiency.
-						"""
-					case .ambientAirTemp: return """
-						The Ambient Air Temperature refers to the temperature of the air surrounding the vehicle, which is typically measured by a temperature sensor located outside the vehicle, often near the front bumper or in the vehicle’s air intake system. This value can influence several aspects of engine performance, including fuel delivery and air intake calculations.
+                        This value is often used by the engine control unit (ECU) to adjust fuel delivery and ignition timing for optimal performance, emissions control, and fuel efficiency.
+                        """
+                    case .ambientAirTemp: return """
+                        The Ambient Air Temperature refers to the temperature of the air surrounding the vehicle, which is typically measured by a temperature sensor located outside the vehicle, often near the front bumper or in the vehicle’s air intake system. This value can influence several aspects of engine performance, including fuel delivery and air intake calculations.
 
-						In an OBD-II context, the ambient air temperature is used by the engine control unit (ECU) to adjust engine parameters based on the outside air conditions. For example, if the ambient temperature is cold, the ECU may adjust fuel injection and ignition timing to compensate for denser air, while in hot weather, adjustments might be made for thinner air.
-						"""
-					case .throttleActuator: return """
-						The Throttle Actuator is a component in a vehicle's throttle system that controls the throttle valve's position based on input from the engine control unit (ECU). This actuator is typically an electric motor that adjusts the throttle valve's position, controlling the amount of air entering the engine and thus the engine’s power output. The throttle actuator is particularly common in drive-by-wire systems, where there is no physical connection between the accelerator pedal and the throttle body, as opposed to traditional cable-operated throttles.
+                        In an OBD-II context, the ambient air temperature is used by the engine control unit (ECU) to adjust engine parameters based on the outside air conditions. For example, if the ambient temperature is cold, the ECU may adjust fuel injection and ignition timing to compensate for denser air, while in hot weather, adjustments might be made for thinner air.
+                        """
+                    case .throttleActuator: return """
+                        The Throttle Actuator is a component in a vehicle's throttle system that controls the throttle valve's position based on input from the engine control unit (ECU). This actuator is typically an electric motor that adjusts the throttle valve's position, controlling the amount of air entering the engine and thus the engine’s power output. The throttle actuator is particularly common in drive-by-wire systems, where there is no physical connection between the accelerator pedal and the throttle body, as opposed to traditional cable-operated throttles.
 
-						In modern vehicles, the throttle actuator works in conjunction with various sensors (like the throttle position sensor) to maintain smooth acceleration, fuel efficiency, and emissions control.
-						"""
-					case .runTimeMIL: return """
-						The Run Time MIL (Malfunction Indicator Lamp) refers to the amount of time that the Malfunction Indicator Light (MIL), commonly known as the Check Engine Light (CEL), has been illuminated during a particular driving session since the vehicle was last started. This is important for diagnosing and troubleshooting issues in the vehicle's emissions system or engine performance.
+                        In modern vehicles, the throttle actuator works in conjunction with various sensors (like the throttle position sensor) to maintain smooth acceleration, fuel efficiency, and emissions control.
+                        """
+                    case .runTimeMIL: return """
+                        The Run Time MIL (Malfunction Indicator Lamp) refers to the amount of time that the Malfunction Indicator Light (MIL), commonly known as the Check Engine Light (CEL), has been illuminated during a particular driving session since the vehicle was last started. This is important for diagnosing and troubleshooting issues in the vehicle's emissions system or engine performance.
 
-						When the MIL light comes on, it indicates that the engine control unit (ECU) has detected an issue with one of the vehicle’s systems (e.g., fuel, exhaust, ignition). The Run Time MIL provides information on how long the light has been on, which can help a technician understand the severity or persistence of the problem.
-						"""
-					case .timeSinceDTCCleared: return """
-						The Time Since DTC Cleared refers to the amount of time that has passed since the Diagnostic Trouble Codes (DTCs) were last cleared or reset in a vehicle's OBD-II system. This can be useful for understanding when the last diagnostic reset occurred and is often helpful in tracking how long the vehicle has been operating since any issues were cleared from the system.
+                        When the MIL light comes on, it indicates that the engine control unit (ECU) has detected an issue with one of the vehicle’s systems (e.g., fuel, exhaust, ignition). The Run Time MIL provides information on how long the light has been on, which can help a technician understand the severity or persistence of the problem.
+                        """
+                    case .timeSinceDTCCleared: return """
+                        The Time Since DTC Cleared refers to the amount of time that has passed since the Diagnostic Trouble Codes (DTCs) were last cleared or reset in a vehicle's OBD-II system. This can be useful for understanding when the last diagnostic reset occurred and is often helpful in tracking how long the vehicle has been operating since any issues were cleared from the system.
 
-						DTCs are generated by the engine control unit (ECU) when it detects an issue with the vehicle's performance or systems. These codes remain in the system until they are manually cleared (such as by using a diagnostic scanner or after certain repairs are made). The time since DTC cleared can be important when determining how long a vehicle has been running since any errors or faults were last addressed.
-						"""
-					case .maxValues: return "Max Values refer to the maximum values recorded by the vehicle’s ECU (Engine Control Unit) for certain parameters since the last DTC reset. This gives insight into how hard the engine has been worked or if it has experienced abnormal conditions."
-					case .maxMAF: return "The Max MAF value represents the maximum air intake measured by the Mass Air Flow (MAF) sensor since the last time the Diagnostic Trouble Codes (DTCs) were cleared. It tells you how much air the engine has ever pulled in under peak load or speed conditions."
-					case .fuelType: return "The Fuel Type PID tells you what type of fuel the vehicle is designed to run on, as reported by the Engine Control Unit (ECU). It’s a standardized identifier useful for diagnostics, emissions testing, and understanding how to interpret certain sensor values (since they can vary depending on the fuel type)."
-					case .ethanoPercent: return "The Ethanol Percentage PID tells you what percentage of the fuel in the tank is ethanol. This is especially relevant for flex-fuel vehicles (FFVs) that can operate on varying blends of gasoline and ethanol (like E10, E15, or E85). Knowing this helps the ECU adjust fuel delivery and timing for optimal performance."
-					case .evapVaporPressureAbs: return """
-						The Evaporative Vapor Pressure (Absolute) PID provides the absolute pressure inside the EVAP (evaporative emissions) system. This value helps monitor the fuel system for leaks, vapor containment, and emissions compliance.
+                        DTCs are generated by the engine control unit (ECU) when it detects an issue with the vehicle's performance or systems. These codes remain in the system until they are manually cleared (such as by using a diagnostic scanner or after certain repairs are made). The time since DTC cleared can be important when determining how long a vehicle has been running since any errors or faults were last addressed.
+                        """
+                    case .maxValues: return "Max Values refer to the maximum values recorded by the vehicle’s ECU (Engine Control Unit) for certain parameters since the last DTC reset. This gives insight into how hard the engine has been worked or if it has experienced abnormal conditions."
+                    case .maxMAF: return "The Max MAF value represents the maximum air intake measured by the Mass Air Flow (MAF) sensor since the last time the Diagnostic Trouble Codes (DTCs) were cleared. It tells you how much air the engine has ever pulled in under peak load or speed conditions."
+                    case .fuelType: return "The Fuel Type PID tells you what type of fuel the vehicle is designed to run on, as reported by the Engine Control Unit (ECU). It’s a standardized identifier useful for diagnostics, emissions testing, and understanding how to interpret certain sensor values (since they can vary depending on the fuel type)."
+                    case .ethanoPercent: return "The Ethanol Percentage PID tells you what percentage of the fuel in the tank is ethanol. This is especially relevant for flex-fuel vehicles (FFVs) that can operate on varying blends of gasoline and ethanol (like E10, E15, or E85). Knowing this helps the ECU adjust fuel delivery and timing for optimal performance."
+                    case .evapVaporPressureAbs: return """
+                        The Evaporative Vapor Pressure (Absolute) PID provides the absolute pressure inside the EVAP (evaporative emissions) system. This value helps monitor the fuel system for leaks, vapor containment, and emissions compliance.
 
-						It’s similar to other vapor pressure PIDs but reports absolute pressure, meaning it’s measured relative to a perfect vacuum (0 kPa), not atmospheric pressure.
-						"""
-					case .evapVaporPressureAlt: return """
-						The Evap Vapor Pressure (Alternate) PID reports the evaporative system vapor pressure, but depending on the vehicle manufacturer, it may use a different scale, unit, or sensor range than the standard PID 53. This PID is typically used in vehicles where pressure is reported as a signed 16-bit value, and the units vary by manufacturer — most commonly reported in Pascals (Pa) or inches of H₂O.
-						"""
-					case .fuelRailPressureAbs: return "The Fuel Rail Pressure (Absolute) PID reports the actual pressure in the fuel rail relative to a perfect vacuum (0 kPa). This is useful for diagnosing fuel delivery issues, checking for fuel pump performance, and ensuring proper fuel injector function."
-					case .relativeAccelPos: return "The Relative Accelerator Pedal Position PID shows how far the accelerator pedal is pressed relative to its minimum and maximum calibrated values, not just raw voltage or angle. This PID provides a normalized percentage (0–100%), making it easier to compare across vehicles."
-					case .engineOilTemp: return "The Engine Oil Temperature PID provides the current temperature of the engine's lubricating oil, which is critical for monitoring engine health, thermal load, and lubrication performance. This sensor is not mandatory on all vehicles, so availability may vary."
-					case .fuelInjectionTiming: return "The Fuel Injection Timing PID provides the timing of fuel injection relative to the crankshaft position, typically expressed in degrees before or after top dead center (BTDC/ATDC). This is essential for understanding combustion efficiency, engine performance, and diagnosing timing-related issues."
-					case .fuelRate: return "The Fuel Flow Rate PID reports the rate at which fuel is being consumed by the engine. It is typically expressed in liters per hour (L/h) or gallons per hour (GPH), and is useful for monitoring fuel efficiency, consumption trends, and overall engine performance."
-					case .emissionsReq: return "The Emissions Requirements PID provides information about the status of emissions system readiness and compliance with the vehicle’s emission control systems. This PID is often used to check if the vehicle is ready for an emissions inspection or if any emission-related issues are affecting the vehicle’s systems."
-					default: return nil
-				}
-			default: return nil
-		}
-	}
+                        It’s similar to other vapor pressure PIDs but reports absolute pressure, meaning it’s measured relative to a perfect vacuum (0 kPa), not atmospheric pressure.
+                        """
+                    case .evapVaporPressureAlt: return """
+                        The Evap Vapor Pressure (Alternate) PID reports the evaporative system vapor pressure, but depending on the vehicle manufacturer, it may use a different scale, unit, or sensor range than the standard PID 53. This PID is typically used in vehicles where pressure is reported as a signed 16-bit value, and the units vary by manufacturer — most commonly reported in Pascals (Pa) or inches of H₂O.
+                        """
+                    case .fuelRailPressureAbs: return "The Fuel Rail Pressure (Absolute) PID reports the actual pressure in the fuel rail relative to a perfect vacuum (0 kPa). This is useful for diagnosing fuel delivery issues, checking for fuel pump performance, and ensuring proper fuel injector function."
+                    case .relativeAccelPos: return "The Relative Accelerator Pedal Position PID shows how far the accelerator pedal is pressed relative to its minimum and maximum calibrated values, not just raw voltage or angle. This PID provides a normalized percentage (0–100%), making it easier to compare across vehicles."
+                    case .engineOilTemp: return "The Engine Oil Temperature PID provides the current temperature of the engine's lubricating oil, which is critical for monitoring engine health, thermal load, and lubrication performance. This sensor is not mandatory on all vehicles, so availability may vary."
+                    case .fuelInjectionTiming: return "The Fuel Injection Timing PID provides the timing of fuel injection relative to the crankshaft position, typically expressed in degrees before or after top dead center (BTDC/ATDC). This is essential for understanding combustion efficiency, engine performance, and diagnosing timing-related issues."
+                    case .fuelRate: return "The Fuel Flow Rate PID reports the rate at which fuel is being consumed by the engine. It is typically expressed in liters per hour (L/h) or gallons per hour (GPH), and is useful for monitoring fuel efficiency, consumption trends, and overall engine performance."
+                    case .emissionsReq: return "The Emissions Requirements PID provides information about the status of emissions system readiness and compliance with the vehicle’s emission control systems. This PID is often used to check if the vehicle is ready for an emissions inspection or if any emission-related issues are affecting the vehicle’s systems."
+                    default: return nil
+                }
+            default: return nil
+        }
+    }
 }
+

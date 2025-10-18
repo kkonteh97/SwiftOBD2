@@ -265,15 +265,15 @@ class ELM327 {
         }
     }
 
-    func getStatus() async throws -> Result<DecodeResult, DecodeError> {
+    func getStatus() async throws -> DecodeResult {
         logger.info("Getting status")
         let statusCommand = OBDCommand.Mode1.status
         let statusResponse = try await sendCommand(statusCommand.properties.command)
         logger.debug("Status response: \(statusResponse)")
         guard let statusData = try canProtocol?.parse(statusResponse).first?.data else {
-            return .failure(.noData)
+            throw DecodeError.noData
         }
-        return statusCommand.properties.decode(data: statusData)
+        return try statusCommand.properties.decode(data: statusData)
     }
 
     func scanForTroubleCodes() async throws -> [ECUID: [TroubleCode]] {
@@ -289,16 +289,10 @@ class ELM327 {
             guard let dtcData = message.data else {
                 continue
             }
-            let decodedResult = dtcCommand.properties.decode(data: dtcData)
+            let decodedResult = try dtcCommand.properties.decode(data: dtcData)
 
             let ecuId = message.ecu
-            switch decodedResult {
-            case let .success(result):
-                dtcs[ecuId] = result.troubleCode
-
-            case let .failure(error):
-                logger.error("Failed to decode DTC: \(error)")
-            }
+            dtcs[ecuId] = decodedResult.troubleCode
         }
 
         return dtcs
@@ -467,17 +461,10 @@ struct BatchedResponse {
 
         response.removeFirst(size)
         //        print("Buffer: \(buffer.compactMap { String(format: "%02X ", $0) }.joined())")
-        let result = cmd.properties.decode(data: valueData, unit: unit)
+        let result = try? cmd.properties.decode(data: valueData, unit: unit)
 
-        
 
-        switch result {
-        case let .success(measurementResult):
-            return measurementResult.measurementResult
-        case let .failure(error):
-            obdError("Failed to decode command \(cmd.properties.command): \(error.localizedDescription) | Data: \(valueData.map { String(format: "%02X", $0) }.joined(separator: " "))", category: .parsing)
-            return nil
-        }
+        return result?.measurementResult
     }
 }
 

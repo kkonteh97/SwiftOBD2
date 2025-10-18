@@ -32,8 +32,8 @@ public class OBDLogger {
     public var isLoggingEnabled: Bool = true
     
     /// Controls the minimum log level to display
-    public var minimumLogLevel: OSLogType = .debug
-    
+    public var minimumLogLevel: OSLogType = .default
+
     // MARK: - Initialization
     
     private init() {
@@ -70,7 +70,8 @@ public class OBDLogger {
     }
     
     private func log(_ message: String, level: OSLogType, category: Category, file: String, function: String, line: Int) {
-        guard isLoggingEnabled && level.rawValue >= minimumLogLevel.rawValue else { return }
+        guard isLoggingEnabled && level.rawValue >= minimumLogLevel.rawValue else {return}
+
         guard let logger = loggers[category] else { return }
         
         let fileName = URL(fileURLWithPath: file).lastPathComponent

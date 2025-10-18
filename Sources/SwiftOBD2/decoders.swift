@@ -7,84 +7,6 @@
 
 import Foundation
 
-public enum MeasurementUnit: String, Codable {
-    case metric = "Metric"
-    case imperial = "Imperial"
-
-    public static var allCases: [MeasurementUnit] {
-        [.metric, .imperial]
-    }
-}
-
-public struct Status: Codable, Hashable {
-    var MIL: Bool = false
-    public var dtcCount: UInt8 = 0
-    var ignitionType: String = ""
-
-    var misfireMonitoring = StatusTest()
-    var fuelSystemMonitoring = StatusTest()
-    var componentMonitoring = StatusTest()
-}
-
-struct StatusTest: Codable, Hashable {
-    var name: String = ""
-    var supported: Bool = false
-    var ready: Bool = false
-
-    init(_ name: String = "", _ supported: Bool = false, _ ready: Bool = false) {
-        self.name = name
-        self.supported = supported
-        self.ready = ready
-    }
-}
-
-struct BitArray {
-    let data: Data
-    var binaryArray: [Int] {
-        // Convert Data to binary array representation
-        var result = [Int]()
-        for byte in data {
-            for i in 0 ..< 8 {
-                // Extract each bit of the byte
-                let bit = (byte >> (7 - i)) & 1
-                result.append(Int(bit))
-            }
-        }
-        return result
-    }
-
-    func index(of value: Int) -> Int? {
-        // Find the index of the given value (1 or 0)
-        return binaryArray.firstIndex(of: value)
-    }
-
-    func value(at range: Range<Int>) -> UInt8 {
-        var value: UInt8 = 0
-        for bit in range {
-            value = value << 1
-            value = value | UInt8(binaryArray[bit])
-        }
-        return value
-    }
-}
-
-extension Unit {
-    static let percent = Unit(symbol: "%")
-    static let count = Unit(symbol: "count")
-//    static let celsius = Unit(symbol: "°C")
-    static let degrees = Unit(symbol: "°")
-    static let gramsPerSecond = Unit(symbol: "g/s")
-    static let none = Unit(symbol: "")
-    static let rpm = Unit(symbol: "rpm")
-//    static let kph = Unit(symbol: "KP/H")
-//    static let mph = Unit(symbol: "MP/H")
-
-    static let Pascal = Unit(symbol: "Pa")
-    static let bar = Unit(symbol: "bar")
-    static let ppm = Unit(symbol: "ppm")
-    static let ratio = Unit(symbol: "ratio")
-}
-
 class UAS {
     let signed: Bool
     let scale: Double
@@ -220,8 +142,8 @@ public enum DecodeError: Error {
     case unsupportedDecoder
 }
 
-protocol Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError>
+public protocol Decoder {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult
 }
 
 public enum DecodeResult {
@@ -230,6 +152,26 @@ public enum DecodeResult {
     case measurementResult(MeasurementResult)
     case troubleCode([TroubleCode])
     case measurementMonitor(Monitor)
+
+    var statusResult: Status? {
+        if case let .statusResult(res) = self { return res as Status }
+        return nil
+    }
+
+    var measurementResult: MeasurementResult? {
+        if case let .measurementResult(res) = self { return res as MeasurementResult }
+        return nil
+    }
+
+    var troubleCode: [TroubleCode]? {
+        if case let .troubleCode(res) = self { return res as [TroubleCode] }
+        return nil
+    }
+
+    var measurementMonitor: Monitor? {
+        if case let .measurementMonitor(res) = self { return res as Monitor }
+        return nil
+    }
 }
 
 public enum Decoders: Equatable, Encodable {
@@ -267,73 +209,54 @@ public enum Decoders: Equatable, Encodable {
     case encoded_string
     case none
 
+    private static var uasDecoders = [UInt8: UASDecoder]()
+
+    private static let staticDecoders: [String: Decoder] = [
+        "status" : StatusDecoder(),
+        "temp" : TemperatureDecoder(),
+        "percent" : PercentDecoder(),
+        "percentCentered" : PercentCenteredDecoder(),
+        "currentCentered" : CurrentCenteredDecoder(),
+        "airStatus" : AirStatusDecoder(),
+        "singleDTC" : SingleDTCDecoder(),
+        "fuelStatus" : FuelStatusDecoder(),
+        "fuelPressure" : FuelPressureDecoder(),
+        "pressure" : PressureDecoder(),
+        "timingAdvance" : TimingAdvanceDecoder(),
+        "obdCompliance" : OBDComplianceDecoder(),
+        "o2SensorsAlt" : O2SensorsAltDecoder(),
+        "o2Sensors" : O2SensorsDecoder(),
+        "sensorVoltage" : SensorVoltageDecoder(),
+        "sensorVoltageBig" : SensorVoltageBigDecoder(),
+        "evapPressure" : EvapPressureDecoder(),
+        "absoluteLoad" : AbsoluteLoadDecoder(),
+        "maxMaf" : MaxMafDecoder(),
+        "fuelType" : FuelTypeDecoder(),
+        "absEvapPressure" : AbsEvapPressureDecoder(),
+        "evapPressureAlt" : EvapPressureAltDecoder(),
+        "injectTiming" : InjectTimingDecoder(),
+        "dtc" : DTCDecoder(),
+        "fuelRate" : FuelRateDecoder(),
+        "monitor" : MonitorDecoder(),
+        "encoded_string" : StringDecoder()
+    ]
+
     func getDecoder() -> Decoder? {
             switch self {
-            case .status:
-                return StatusDecoder()
-            case .temp:
-                return TemperatureDecoder()
-            case .percent:
-                return PercentDecoder()
-            case .percentCentered:
-                return PercentCenteredDecoder()
-            case .currentCentered:
-                return CurrentCenteredDecoder()
-            case .airStatus:
-                return AirStatusDecoder()
-            case .singleDTC:
-                return SingleDTCDecoder()
-            case .fuelStatus:
-                return FuelStatusDecoder()
-            case .fuelPressure:
-                return FuelPressureDecoder()
-            case .pressure:
-                return PressureDecoder()
-            case .timingAdvance:
-                return TimingAdvanceDecoder()
-            case .obdCompliance:
-                return OBDComplianceDecoder()
-            case .o2SensorsAlt:
-                return O2SensorsAltDecoder()
-            case .o2Sensors:
-                return O2SensorsDecoder()
-            case .sensorVoltage:
-                return SensorVoltageDecoder()
-            case .sensorVoltageBig:
-                return SensorVoltageBigDecoder()
-            case .evapPressure:
-                return EvapPressureDecoder()
-            case .absoluteLoad:
-                return AbsoluteLoadDecoder()
-            case .maxMaf:
-                return MaxMafDecoder()
-            case .fuelType:
-                return FuelTypeDecoder()
-            case .absEvapPressure:
-                return AbsEvapPressureDecoder()
-            case .evapPressureAlt:
-                return EvapPressureAltDecoder()
-            case .injectTiming:
-                return InjectTimingDecoder()
-            case .dtc:
-                return DTCDecoder()
-            case .fuelRate:
-                return FuelRateDecoder()
-            case .monitor:
-                return MonitorDecoder()
-            case .encoded_string:
-                return StringDecoder()
             case .uas(let id):
-                let decoder = UASDecoder(id: id)
-                return decoder
+                if Self.uasDecoders[id] == nil {
+                    Self.uasDecoders[id] = UASDecoder(id: id)
+                }
+                return Self.uasDecoders[id]
             default:
-                return nil
+                let key = String(describing: self).components(separatedBy: ".").last ?? ""
+                return Self.staticDecoders[key]
             }
         }
 }
 
 struct MonitorDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         var databytes = Data(data)
 
         let mon = Monitor()
@@ -361,7 +284,7 @@ struct MonitorDecoder: Decoder {
                 mon.tests[tid] = test
             }
         }
-        return .success(.measurementMonitor(mon))
+        return  .measurementMonitor(mon)
     }
 
     func parse_monitor_test(_ data: Data) -> MonitorTest? {
@@ -397,14 +320,14 @@ struct MonitorDecoder: Decoder {
 }
 
 struct FuelRateDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = Double(bytesToInt(data)) * 0.05
-        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers))))
+        return  (.measurementResult(MeasurementResult(value: value, unit: UnitFuelEfficiency.litersPer100Kilometers)))
     }
 }
 
 struct DTCDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         // converts a frame of 2-byte DTCs into a list of DTCs
         let data = Data(data)
         var codes: [TroubleCode] = []
@@ -416,103 +339,109 @@ struct DTCDecoder: Decoder {
             }
             codes.append(dtc)
         }
-        return .success(.troubleCode(codes))
+        return  .troubleCode(codes)
     }
 }
 
 struct InjectTimingDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = (Double(bytesToInt(data)) - 26880) / 128
-        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.degrees))))
+        return  (.measurementResult(MeasurementResult(value: value, unit: UnitPressure.degrees)))
     }
 }
 
 struct EvapPressureAltDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = Double(bytesToInt(data)) - 32767
-        return .success((.measurementResult(MeasurementResult(value: value, unit: Unit.Pascal))))
+        return  (.measurementResult(MeasurementResult(value: value, unit: Unit.Pascal)))
     }
 }
 
 struct AbsEvapPressureDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = Double(bytesToInt(data)) / 200
-        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
+        return  (.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals)))
     }
 }
 
 struct FuelTypeDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 0 else {
-            return .failure(.invalidData)
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
+        guard data.count > 0, let i = data.first else {
+            throw DecodeError.invalidData
         }
-        let i = data[0]
+
         var value: String?
         if i < FuelTypes.count {
             value = FuelTypes[Int(i)]
         }
         guard let value = value else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
-        return .success(.stringResult((value)))
+        return  .stringResult((value))
     }
 }
 
 struct MaxMafDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 0 else {
-            return .failure(.invalidData)
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
+        guard data.count > 0, let a = data.first else {
+            throw DecodeError.invalidData
         }
-        let value = data[0] * 10
-        return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond))))
+        let value = Int(a) * 10
+        return  (.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond)))
     }
 }
 
 struct AbsoluteLoadDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = (bytesToInt(data) * 100) / 255
-        return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.percent))))
+        return  (.measurementResult(MeasurementResult(value: Double(value), unit: Unit.percent)))
     }
 }
 
 
 struct EvapPressureDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard data.count > 1 else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
-        
-        let a = twosComp(Int(data[0]), length: 8)
-        let b = twosComp(Int(data[1]), length: 8)
+        print("Evap", data.compactMap { String(format: "%02X", $0) }.joined(separator: " "))
+        guard data.count >= 2,
+              let firstByte = data.first,
+              let secondByte = data.dropFirst().first else {
+            throw DecodeError.invalidData
+        }
+
+        let a = twosComp(Int(firstByte), length: 8)
+        let b = twosComp(Int(secondByte), length: 8)
 
         let value = ((Double(a) * 256.0) + Double(b)) / 4.0
-        return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
+        return  .measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))
     }
 }
 
 struct SensorVoltageBigDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard data.indices.contains(2) && data.indices.contains(3) else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
         let value = bytesToInt(data[2 ..< 4])
         let voltage = (Double(value) * 8.0) / 65535
-        return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
+        return  .measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts))
     }
 }
 
 struct SensorVoltageDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard data.count == 2 else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
         let voltage = Double(data.first ?? 0) / 200
-        return .success(.measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts)))
+        return  .measurementResult(MeasurementResult(value: voltage, unit: UnitElectricPotentialDifference.volts))
     }
 }
 
 struct O2SensorsDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let bits = BitArray(data: data)
         //        return (
         //                (),  # bank 0 is invalid
@@ -525,12 +454,12 @@ struct O2SensorsDecoder: Decoder {
         let bank1 = Array(bits.binaryArray[0 ..< 4])
         let bank2 = Array(bits.binaryArray[4 ..< 8])
 
-        return .success(.stringResult("\(bank1), \(bank2)"))
+        return  .stringResult("\(bank1), \(bank2)")
     }
 }
 
 struct O2SensorsAltDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let bits = BitArray(data: data)
         //        return (
         //                (),  # bank 0 is invalid
@@ -545,65 +474,65 @@ struct O2SensorsAltDecoder: Decoder {
         let bank3 = Array(bits.binaryArray[4 ..< 6])
         let bank4 = Array(bits.binaryArray[6 ..< 8])
 
-        return .success(.stringResult("\(bank1), \(bank2), \(bank3), \(bank4)"))
+        return  .stringResult("\(bank1), \(bank2), \(bank3), \(bank4)")
     }
 }
 
 
 struct OBDComplianceDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard data.count > 1 else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
-        
+
         let i = data[1]
 
         if i < OBD_COMPLIANCE.count {
-            return .success(.stringResult((OBD_COMPLIANCE[Int(i)])))
+            return  .stringResult((OBD_COMPLIANCE[Int(i)]))
         } else {
-            return .failure(.decodingFailed(reason: "Invalid response for OBD compliance (no table entry)"))
+            throw DecodeError.decodingFailed(reason: "Invalid response for OBD compliance (no table entry)")
         }
     }
 }
 
 struct TimingAdvanceDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = Double(data.first ?? 0) / 2.0 - 64.0
-        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitAngle.degrees)))
+        return  .measurementResult(MeasurementResult(value: value, unit: UnitAngle.degrees))
     }
 }
 
 struct PressureDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = data.first ?? 0
-        return .success(.measurementResult(MeasurementResult(value: Double(value), unit: UnitPressure.kilopascals)))
+        return  .measurementResult(MeasurementResult(value: Double(value), unit: UnitPressure.kilopascals))
     }
 }
 
 
 struct FuelPressureDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-		var value = Double(data.first ?? 0)
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
+        var value = Double(data.first ?? 0)
         value = value * 3
-        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals)))
+        return  .measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))
     }
 }
 
 struct AirStatusDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let bits = BitArray(data: data).binaryArray
 
         let numSet = bits.filter { $0 == 1 }.count
         if numSet == 1 {
             let index = 7 - bits.firstIndex(of: 1)!
-            return .success(.measurementResult(MeasurementResult(value: Double(index), unit: UnitElectricCurrent.amperes)))
+            return  .measurementResult(MeasurementResult(value: Double(index), unit: UnitElectricCurrent.amperes))
         }
-        return .failure(.invalidData)
+        throw DecodeError.invalidData
     }
 }
 
 struct FuelStatusDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let bits = BitArray(data: data)
         var status_1: String?
         var status_2: String?
@@ -632,57 +561,57 @@ struct FuelStatusDecoder: Decoder {
         }
 
         if let status_1 = status_1, let status_2 = status_2 {
-            return .success(.stringResult("Status 1: \(status_1), Status 2: \(status_2)"))
+            return  .stringResult("Status 1: \(status_1), Status 2: \(status_2)")
         } else if let status = status_1 ?? status_2 {
-            return .success(.stringResult("Status: \(status)"))
+            return  .stringResult("Status: \(status)")
         } else {
-            return .failure(.decodingFailed(reason: "No valid status found."))
+            throw DecodeError.decodingFailed(reason: "No valid status found.")
         }
     }
 }
 
 struct SingleDTCDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let troubleCode = parseDTC(data)
-        return .success(.troubleCode(troubleCode.map { [$0] } ?? []))
+        return  .troubleCode(troubleCode.map { [$0] } ?? [])
     }
 }
 
 struct CurrentCenteredDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         var value = Double(bytesToInt(data.dropFirst(2)))
         value = (value / 256.0) - 128.0
-        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes)))
+        return  .measurementResult(MeasurementResult(value: value, unit: UnitElectricCurrent.milliamperes))
     }
 }
 
 struct PercentCenteredDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         var value = Double(data.first ?? 0)
         value = (value - 128) * 100.0 / 128.0
-        return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
+        return  .measurementResult(MeasurementResult(value: value, unit: Unit.percent))
     }
 }
 
 struct PercentDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         var value = Double(data.first ?? 0)
         value = value * 100.0 / 255.0
-        return .success(.measurementResult(MeasurementResult(value: value, unit: Unit.percent)))
+        return  .measurementResult(MeasurementResult(value: value, unit: Unit.percent))
     }
 }
 
 struct TemperatureDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let value = Double(bytesToInt(data)) - 40.0
-        return .success(.measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius)))
+        return  .measurementResult(MeasurementResult(value: value, unit: UnitTemperature.celsius))
     }
 }
 
 struct StringDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard var string = String(bytes: data, encoding: .utf8) else {
-            return .failure(.decodingFailed(reason: "Failed to decode string"))
+            throw  DecodeError.decodingFailed(reason: "Failed to decode string")
         }
 
         string = string
@@ -690,23 +619,23 @@ struct StringDecoder: Decoder {
                                   with: "",
                                   options: .regularExpression)
 
-        return .success(.stringResult(string))
+        return  .stringResult(string)
     }
 }
 
 struct UASDecoder: Decoder {
     let id: UInt8
 
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         guard let uas = uasIDS[id] else {
-            return .failure(.invalidData)
+            throw DecodeError.invalidData
         }
-        return .success((.measurementResult(uas.decode(bytes: data, unit))))
+        return  (.measurementResult(uas.decode(bytes: data, unit)))
     }
 }
 
 struct StatusDecoder: Decoder {
-    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+    func decode(data: Data, unit: MeasurementUnit) throws -> DecodeResult {
         let IGNITIONTYPE = ["Spark", "Compression"]
         //            ┌Components not ready
         //            |┌Fuel not ready
@@ -734,7 +663,7 @@ struct StatusDecoder: Decoder {
         for (index, name) in baseTests.reversed().enumerated() {
             processBaseTest(name, index, bits, &output)
         }
-        return .success(.statusResult(output))
+        return  .statusResult(output)
     }
 
     func processBaseTest(_ testName: String, _ index: Int, _ bits: BitArray, _ output: inout Status) {
@@ -804,6 +733,84 @@ public struct MonitorTest {
     var description: String {
         return "\(desc ?? "") : \(value?.value ?? 0) [\(passed ? "PASSED" : "FAILED")]"
     }
+}
+
+public enum MeasurementUnit: String, Codable {
+    case metric = "Metric"
+    case imperial = "Imperial"
+
+    public static var allCases: [MeasurementUnit] {
+        [.metric, .imperial]
+    }
+}
+
+public struct Status: Codable, Hashable {
+    var MIL: Bool = false
+    public var dtcCount: UInt8 = 0
+    var ignitionType: String = ""
+
+    var misfireMonitoring = StatusTest()
+    var fuelSystemMonitoring = StatusTest()
+    var componentMonitoring = StatusTest()
+}
+
+struct StatusTest: Codable, Hashable {
+    var name: String = ""
+    var supported: Bool = false
+    var ready: Bool = false
+
+    init(_ name: String = "", _ supported: Bool = false, _ ready: Bool = false) {
+        self.name = name
+        self.supported = supported
+        self.ready = ready
+    }
+}
+
+struct BitArray {
+    let data: Data
+    var binaryArray: [Int] {
+        // Convert Data to binary array representation
+        var result = [Int]()
+        for byte in data {
+            for i in 0 ..< 8 {
+                // Extract each bit of the byte
+                let bit = (byte >> (7 - i)) & 1
+                result.append(Int(bit))
+            }
+        }
+        return result
+    }
+
+    func index(of value: Int) -> Int? {
+        // Find the index of the given value (1 or 0)
+        return binaryArray.firstIndex(of: value)
+    }
+
+    func value(at range: Range<Int>) -> UInt8 {
+        var value: UInt8 = 0
+        for bit in range {
+            value = value << 1
+            value = value | UInt8(binaryArray[bit])
+        }
+        return value
+    }
+}
+
+extension Unit {
+    static let percent = Unit(symbol: "%")
+    static let count = Unit(symbol: "count")
+//    static let celsius = Unit(symbol: "°C")
+    static let degrees = Unit(symbol: "°")
+    static let gramsPerSecond = Unit(symbol: "g/s")
+    static let none = Unit(symbol: "")
+    static let rpm = Unit(symbol: "rpm")
+//    static let kph = Unit(symbol: "KP/H")
+//    static let mph = Unit(symbol: "MP/H")
+
+    static let Pascal = Unit(symbol: "Pa")
+    static let bar = Unit(symbol: "bar")
+    static let ppm = Unit(symbol: "ppm")
+    static let ratio = Unit(symbol: "ratio")
 }
 
 let baseTests = [

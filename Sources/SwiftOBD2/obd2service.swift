@@ -101,14 +101,14 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func startConnection(preferedProtocol: PROTOCOL? = nil, timeout: TimeInterval = 7) async throws -> OBDInfo {
         let startTime = CFAbsoluteTimeGetCurrent()
         obdInfo("Starting connection with timeout: \(timeout)s", category: .connection)
-        
+
         do {
             obdDebug("Connecting to adapter...", category: .connection)
             try await elm327.connectToAdapter(timeout: timeout)
-            
+
             obdDebug("Initializing adapter...", category: .connection)
             try await elm327.adapterInitialization()
-            
+
             obdDebug("Initializing vehicle connection...", category: .connection)
             let vehicleInfo = try await initializeVehicle(preferedProtocol)
 
@@ -224,13 +224,13 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     ///  - Parameter command: The OBD2 command to send.
     ///  - Returns: The raw response from the vehicle.
     ///  - Throws: Errors that might occur during the request process.
-    public func sendCommand(_ command: OBDCommand) async throws -> Result<DecodeResult, DecodeError> {
+    public func sendCommand(_ command: OBDCommand) async throws -> DecodeResult {
         do {
             let response = try await sendCommandInternal(command.properties.command, retries: 3)
             guard let responseData = try elm327.canProtocol?.parse(response).first?.data else {
-                return .failure(.noData)
+                throw DecodeError.noData
             }
-            return command.properties.decode(data: responseData.dropFirst())
+            return try command.properties.decode(data: responseData.dropFirst())
         } catch {
             throw OBDServiceError.commandFailed(command: command.properties.command, error: error)
         }
@@ -268,12 +268,12 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// Returns the vehicle's status.
     ///  - Returns: The vehicle's status.
     ///  - Throws: Errors that might occur during the request process.
-    public func getStatus() async throws -> Result<DecodeResult, DecodeError> {
-        do {
-            return try await elm327.getStatus()
-        } catch {
-            throw error
+    public func getStatus() async throws -> Status {
+        guard let status = try await elm327.getStatus().statusResult else {
+            throw OBDServiceError.noAdapterFound
         }
+
+        return status
     }
 
     //    public func switchToDemoMode(_ isDemoMode: Bool) {
@@ -376,17 +376,17 @@ public enum OBDServiceError: Error {
 public struct MeasurementResult: Equatable {
     public var value: Double
     public let unit: Unit
-	
-	public init(value: Double, unit: Unit) {
-		self.value = value
-		self.unit = unit
-	}
+
+    public init(value: Double, unit: Unit) {
+        self.value = value
+        self.unit = unit
+    }
 }
 
 public extension MeasurementResult {
-	static func mock(_ value: Double = 125, _ suffix: String = "km/h") -> MeasurementResult {
-		.init(value: value, unit: .init(symbol: suffix))
-	}
+    static func mock(_ value: Double = 125, _ suffix: String = "km/h") -> MeasurementResult {
+        .init(value: value, unit: .init(symbol: suffix))
+    }
 }
 
 public func getVINInfo(vin: String) async throws -> VINResults {

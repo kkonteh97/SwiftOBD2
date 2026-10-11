@@ -148,31 +148,30 @@ class ELM327 {
             let msg = "Protocol detect: testing preferred \(protocolToTest.description)…"
             obdInfo(msg, category: .protocol)
             obdDelegate?.logMessage(msg)
-            if await testProtocol(protocolToTest) {
+            // Select the preferred protocol before testing it. Adapter initialisation
+            // leaves the ELM327 on ATSP0, so without this the "preferred" test was really
+            // an auto-search and the manual choice was never applied.
+            if (try? await okResponse(protocolToTest.cmd)) != nil, await testProtocol(protocolToTest) {
                 let found = "Protocol found: \(protocolToTest.description)"
                 obdInfo(found, category: .protocol)
                 obdDelegate?.logMessage(found)
                 return protocolToTest
-            } else {
-                let fallback = "Preferred protocol \(protocolToTest.description) failed — falling back to auto-detect"
-                obdInfo(fallback, category: .protocol)
-                obdDelegate?.logMessage(fallback)
             }
+            let fallback = "Preferred protocol \(protocolToTest.description) failed — falling back to auto-detect"
+            obdInfo(fallback, category: .protocol)
+            obdDelegate?.logMessage(fallback)
         } else {
             obdDelegate?.logMessage("Protocol detect: starting auto-detect (ATSP0 + 0100)…")
-            do {
-                return try await detectProtocolAutomatically()
-            } catch {
-                let msg = "Auto-detect failed (\(error.localizedDescription)) — trying manual sweep…"
-                obdInfo(msg, category: .protocol)
-                obdDelegate?.logMessage(msg)
-                return try await detectProtocolManually()
-            }
         }
 
-        obdError("Failed to detect a compatible OBD protocol.", category: .protocol)
-        obdDelegate?.logMessage("Protocol detect: no protocol found — giving up")
-        throw ELM327Error.noProtocolFound
+        do {
+            return try await detectProtocolAutomatically()
+        } catch {
+            let msg = "Auto-detect failed (\(error.localizedDescription)) — trying manual sweep…"
+            obdInfo(msg, category: .protocol)
+            obdDelegate?.logMessage(msg)
+            return try await detectProtocolManually()
+        }
     }
 
     /// Attempts to detect the OBD protocol automatically.
@@ -232,13 +231,17 @@ class ELM327 {
     /// protocols ahead of them — the previous order, `PROTOCOL.allCases` in declaration
     /// order — spent up to 5 full round-trips (ATSPn + 0100 + timeout each) on protocols
     /// that were never going to answer before ever reaching the one that would. Legacy
-    /// (pre-CAN) protocols come next, then J1939/user-defined CAN last since they're both
-    /// rare for a consumer passenger vehicle. Only reached at all when the ELM327's own
-    /// ATSP0 auto-search (`detectProtocolAutomatically`) already failed.
-    private static let manualSweepOrder: [PROTOCOL] = [
+    /// (pre-CAN) protocols come next. Only reached at all when the ELM327's own ATSP0
+    /// auto-search (`detectProtocolAutomatically`) already failed.
+    ///
+    /// J1939 (A) and the two user-defined CAN protocols (B, C) are deliberately excluded.
+    /// They are not OBD-II passenger-car protocols, and probing them transmits on pins 6/14
+    /// at bitrates the vehicle's diagnostic bus isn't running, which puts error frames on a
+    /// live bus (ISO 15765-4 warns about exactly this). A caller that really wants one of
+    /// them selects it explicitly as the preferred protocol.
+    static let manualSweepOrder: [PROTOCOL] = [
         .protocol6, .protocol7, .protocol8, .protocol9,
         .protocol1, .protocol2, .protocol3, .protocol4, .protocol5,
-        .protocolA, .protocolB, .protocolC,
     ]
 
     /// Attempts to detect the OBD protocol manually.

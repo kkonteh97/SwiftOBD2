@@ -5,11 +5,20 @@ import Foundation
 public enum ConnectionType: String, CaseIterable {
     case bluetooth = "Bluetooth"
     case wifi = "Wi-Fi"
-    case demo = "Demo"
+    case serial = "USB Serial"
 }
 
 public protocol OBDServiceDelegate: AnyObject {
     func connectionStateChanged(state: ConnectionState)
+    func peripheralsUpdated(_ peripherals: [CBPeripheral])
+    func adapterInfoUpdated(_ info: [String: String])
+    func logMessage(_ message: String)
+}
+
+extension OBDServiceDelegate {
+    public func peripheralsUpdated(_ peripherals: [CBPeripheral]) {}
+    public func adapterInfoUpdated(_ info: [String: String]) {}
+    public func logMessage(_ message: String) {}
 }
 
 struct Command: Codable {
@@ -22,9 +31,9 @@ struct Command: Codable {
     var minValue: Int
 }
 
-public class ConfigurationService {
-    static var shared = ConfigurationService()
-    var connectionType: ConnectionType {
+public class ConfigurationService: @unchecked Sendable {
+    public static let shared = ConfigurationService()
+    public var connectionType: ConnectionType {
         get {
             let rawValue = UserDefaults.standard.string(forKey: "connectionType") ?? "Bluetooth"
             return ConnectionType(rawValue: rawValue) ?? .bluetooth
@@ -32,6 +41,26 @@ public class ConfigurationService {
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: "connectionType")
         }
+    }
+    public var wifiHost: String {
+        get { UserDefaults.standard.string(forKey: "wifiHost") ?? "192.168.0.10" }
+        set { UserDefaults.standard.set(newValue, forKey: "wifiHost") }
+    }
+    public var wifiPort: String {
+        get { UserDefaults.standard.string(forKey: "wifiPort") ?? "35000" }
+        set { UserDefaults.standard.set(newValue, forKey: "wifiPort") }
+    }
+    public var serialPath: String {
+        get { UserDefaults.standard.string(forKey: "serialPath") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "serialPath") }
+    }
+    public var serialVerboseLogging: Bool {
+        get { UserDefaults.standard.bool(forKey: "serialVerboseLogging") }
+        set { UserDefaults.standard.set(newValue, forKey: "serialVerboseLogging") }
+    }
+    public var obdCommandLogging: Bool {
+        get { UserDefaults.standard.bool(forKey: "obdCommandLogging") }
+        set { UserDefaults.standard.set(newValue, forKey: "obdCommandLogging") }
     }
 }
 
@@ -42,10 +71,19 @@ public class ConfigurationService {
 ///   - Sending and receiving OBD2 commands.
 ///   - Providing information about the vehicle.
 ///   - Managing the connection state.
-public class OBDService: ObservableObject, OBDServiceDelegate {
+public class OBDService: ObservableObject, OBDServiceDelegate, @unchecked Sendable {
     @Published public private(set) var connectionState: ConnectionState = .disconnected
     @Published public private(set) var isScanning: Bool = false
     @Published public private(set) var connectedPeripheral: CBPeripheral?
+    @Published public private(set) var peripherals: [CBPeripheral] = []
+    @Published public private(set) var adapterInfo: [String: String] = [:]
+
+    // Plain Swift callbacks — consumed by the app layer without Combine.
+    public var onConnectionStateChanged: ((ConnectionState) -> Void)?
+    public var onPeripheralsUpdated: (([CBPeripheral]) -> Void)?
+    public var onScanningChanged: ((Bool) -> Void)?
+    public var onAdapterInfoUpdated: (([String: String]) -> Void)?
+    public var onLog: ((String) -> Void)?
     @Published public var connectionType: ConnectionType {
         didSet {
             switchConnectionType(connectionType)
@@ -73,9 +111,14 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             let bleManager = BLEManager()
             elm327 = ELM327(comm: bleManager)
         case .wifi:
-            elm327 = ELM327(comm: WifiManager())
-        case .demo:
-            elm327 = ELM327(comm: MOCKComm())
+            let config = ConfigurationService.shared
+            elm327 = ELM327(comm: WifiManager(host: config.wifiHost, port: config.wifiPort))
+        case .serial:
+            #if os(iOS)
+            elm327 = ELM327(comm: SerialManager())
+            #else
+            elm327 = ELM327(comm: MacSerialManager())
+            #endif
         }
 #endif
         elm327.obdDelegate = self
@@ -86,10 +129,33 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func connectionStateChanged(state: ConnectionState) {
         DispatchQueue.main.async {
             let oldState = self.connectionState
+            // The transport layers can still deliver the same state twice
+            // (e.g. a manual stop followed by the publisher's .disconnected);
+            // consumers must only see genuine transitions.
+            guard oldState != state else { return }
             self.connectionState = state
-            if oldState != state {
-                OBDLogger.shared.logConnectionChange(from: oldState, to: state)
-            }
+            OBDLogger.shared.logConnectionChange(from: oldState, to: state)
+            self.onConnectionStateChanged?(state)
+        }
+    }
+
+    public func peripheralsUpdated(_ peripherals: [CBPeripheral]) {
+        DispatchQueue.main.async {
+            self.peripherals = peripherals
+            self.onPeripheralsUpdated?(peripherals)
+        }
+    }
+
+    public func adapterInfoUpdated(_ info: [String: String]) {
+        DispatchQueue.main.async {
+            self.adapterInfo = info
+            self.onAdapterInfoUpdated?(info)
+        }
+    }
+
+    public func logMessage(_ message: String) {
+        DispatchQueue.main.async {
+            self.onLog?(message)
         }
     }
 
@@ -98,17 +164,56 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     /// - Parameter preferedProtocol: The optional OBD2 protocol to use (if supported).
     /// - Returns: Information about the connected vehicle (`OBDInfo`).
     /// - Throws: Errors that might occur during the connection process.
-    public func startConnection(preferedProtocol: PROTOCOL? = nil, timeout: TimeInterval = 7) async throws -> OBDInfo {
+    public func startConnection(preferedProtocol: PROTOCOL? = nil, timeout: TimeInterval = 7, peripheral: CBPeripheral? = nil) async throws -> OBDInfo {
+        do {
+            return try await attemptConnection(preferedProtocol: preferedProtocol, timeout: timeout, peripheral: peripheral)
+        } catch OBDServiceError.adapterConnectionFailed(let underlying) where Self.isWorthRetrying(underlying) {
+            // A transient link drop mid-handshake (the adapter/port still settling
+            // right after open) is common on the very first connect and otherwise
+            // forces the user to manually retry — one clean retry here covers it.
+            obdWarning("Connection attempt failed — retrying once", category: .connection)
+            elm327.stopConnection()
+            return try await attemptConnection(preferedProtocol: preferedProtocol, timeout: timeout, peripheral: peripheral)
+        }
+        // .noAdapterFound already waited out a full BLE scan timeout — retrying
+        // immediately would just double that wait for no benefit, so it propagates as-is.
+    }
+
+    /// Which handshake failures are worth one immediate retry.
+    ///
+    /// A transport that dropped while the adapter or port was still settling usually
+    /// succeeds on the second try and costs a second or two to find out. A vehicle-level
+    /// failure does not: `noProtocolFound` has already paid for the ELM327's own ATSP0
+    /// auto-search *plus* a full 12-protocol manual sweep, each miss costing `ATSPn` +
+    /// `0100` + a full command timeout. Repeating that doubles a wait the user is already
+    /// sitting through and ends with the same answer — and because a consuming app may
+    /// well retry on top of this one, a retry here is never as cheap as it looks.
+    private static func isWorthRetrying(_ error: Error) -> Bool {
+        guard let elmError = error as? ELM327Error else {
+            // Transport-level errors (BLE/WiFi/serial) are the transient case this exists for.
+            return true
+        }
+        switch elmError {
+        case .noProtocolFound, .invalidProtocol, .ignitionOff, .invalidResponse:
+            // The vehicle answered (or definitively didn't) — asking again changes nothing.
+            return false
+        case .adapterInitializationFailed, .connectionFailed, .timeout, .unknownError:
+            // The link itself faltered; this is the drop a second attempt recovers from.
+            return true
+        }
+    }
+
+    private func attemptConnection(preferedProtocol: PROTOCOL?, timeout: TimeInterval, peripheral: CBPeripheral?) async throws -> OBDInfo {
         let startTime = CFAbsoluteTimeGetCurrent()
         obdInfo("Starting connection with timeout: \(timeout)s", category: .connection)
-        
+
         do {
             obdDebug("Connecting to adapter...", category: .connection)
-            try await elm327.connectToAdapter(timeout: timeout)
-            
+            try await elm327.connectToAdapter(timeout: timeout, peripheral: peripheral)
+
             obdDebug("Initializing adapter...", category: .connection)
             try await elm327.adapterInitialization()
-            
+
             obdDebug("Initializing vehicle connection...", category: .connection)
             let vehicleInfo = try await initializeVehicle(preferedProtocol)
 
@@ -121,6 +226,17 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             OBDLogger.shared.logPerformance("Connection failed", duration: duration, success: false)
             obdError("Connection failed: \(error.localizedDescription)", category: .connection)
+
+            if let bleError = error as? BLEManagerError {
+                if bleError == .peripheralNotFound || bleError == .scanTimeout {
+                    throw OBDServiceError.noAdapterFound
+                }
+            } else if let scanError = error as? BLEScannerError {
+                if scanError == .peripheralNotFound || scanError == .scanTimeout {
+                    throw OBDServiceError.noAdapterFound
+                }
+            }
+
             throw OBDServiceError.adapterConnectionFailed(underlyingError: error) // Propagate
         }
     }
@@ -140,6 +256,20 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         elm327.stopConnection()
     }
 
+    /// Looks up a previously connected BLE peripheral by its system identifier
+    /// so the caller can start a no-scan pending connect
+    /// (`startConnection(timeout: .infinity, peripheral:)` waits until the
+    /// dongle comes in range). Nil on non-BLE transports or when the system
+    /// no longer knows the identifier.
+    public func retrievePeripheral(identifier: UUID) async -> CBPeripheral? {
+        await elm327.retrievePeripheral(withIdentifier: identifier)
+    }
+
+    /// Switches the dongle to a different CAN protocol without dropping the BT/Serial connection.
+    public func switchProtocol(_ proto: PROTOCOL) async throws {
+        try await elm327.switchProtocol(proto)
+    }
+
     /// Switches the active connection type (between Bluetooth and Wi-Fi).
     ///
     /// - Parameter connectionType: The new desired connection type.
@@ -154,9 +284,14 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
             let bleManager = BLEManager()
             elm327 = ELM327(comm: bleManager)
         case .wifi:
-            elm327 = ELM327(comm: WifiManager())
-        case .demo:
-            elm327 = ELM327(comm: MOCKComm())
+            let config = ConfigurationService.shared
+            elm327 = ELM327(comm: WifiManager(host: config.wifiHost, port: config.wifiPort))
+        case .serial:
+            #if os(iOS)
+            elm327 = ELM327(comm: SerialManager())
+            #else
+            elm327 = ELM327(comm: MacSerialManager())
+            #endif
         }
         elm327.obdDelegate = self
     }
@@ -227,7 +362,15 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func sendCommand(_ command: OBDCommand) async throws -> Result<DecodeResult, DecodeError> {
         do {
             let response = try await sendCommandInternal(command.properties.command, retries: 3)
-            guard let responseData = try elm327.canProtocol?.parse(response).first?.data else {
+            guard let messages = try elm327.canProtocol?.parse(response), !messages.isEmpty else {
+                return .failure(.noData)
+            }
+            // This is the app's per-PID live-sensor read path — on a two-ECU vehicle the
+            // old Dictionary-order `.first` picked a different module from one poll to
+            // the next, making values flicker between two sources. Prefer the response
+            // that echoes the requested PID, from the primary (lowest-address) ECM.
+            let pidEcho = UInt8(command.properties.command.dropFirst(2).prefix(2), radix: 16)
+            guard let responseData = preferredECUMessage(messages, pidEcho: pidEcho)?.data else {
                 return .failure(.noData)
             }
             return command.properties.decode(data: responseData.dropFirst())
@@ -243,12 +386,52 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         await elm327.getSupportedPIDs()
     }
 
+    /// Mode 02 — the freeze frame: the snapshot of live values the ECU stored at the
+    /// moment an emissions DTC set. It stays stored (frame 00) until codes are cleared,
+    /// so this works for codes already in memory, not just ones that appear while
+    /// connected. Which DTC owns the stored frame is a separate read: Mode 01 PID 02
+    /// (`OBDCommand.Mode1.freezeDTC`).
+    ///
+    /// Request format is `02 <PID> <frame#>`; the response payload is laid out like the
+    /// Mode 01 equivalent with one extra frame-number byte after the PID echo, so each
+    /// PID's own Mode 01 decoder applies to the payload after dropping [PID][frame#].
+    /// PIDs the vehicle didn't capture answer NO DATA and are simply omitted.
+    public func requestFreezeFrame(_ pids: [OBDCommand.Mode1], frame: UInt8 = 0) async -> [OBDCommand.Mode1: MeasurementResult] {
+        var snapshot: [OBDCommand.Mode1: MeasurementResult] = [:]
+        for pid in pids {
+            let mode1Command = OBDCommand.mode1(pid)
+            let pidHex = String(mode1Command.properties.command.dropFirst(2))
+            let command = String(format: "02%@%02X", pidHex, frame)
+            guard let response = try? await elm327.sendCommand(command, retries: 1),
+                  let messages = try? elm327.canProtocol?.parse(response),
+                  let data = preferredECUMessage(messages, pidEcho: UInt8(pidHex, radix: 16))?.data,
+                  data.count > 2
+            else { continue }
+            // message.data has already dropped the mode echo (0x42); what remains is
+            // [PID echo][frame #][payload...] — the Mode 01 decoder wants just payload.
+            if case let .success(decoded) = mode1Command.properties.decode(data: data.dropFirst(2)),
+               let measurement = decoded.measurementResult {
+                snapshot[pid] = measurement
+            }
+        }
+        return snapshot
+    }
+
     ///  Scans for trouble codes and returns the result.
     ///  - Returns: The trouble codes found on the vehicle.
     ///  - Throws: Errors that might occur during the request process.
     public func scanForTroubleCodes() async throws -> [ECUID: [TroubleCode]] {
         do {
             return try await elm327.scanForTroubleCodes()
+        } catch {
+            throw OBDServiceError.scanFailed(underlyingError: error)
+        }
+    }
+
+    /// Scans a specific ECU for DTCs using UDS Service $19 (readDTCByStatusMask).
+    public func scanForUDSDTCs(header: String) async throws -> [TroubleCode] {
+        do {
+            return try await elm327.scanForUDSDTCs(header: header)
         } catch {
             throw OBDServiceError.scanFailed(underlyingError: error)
         }
@@ -292,6 +475,14 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
         }
     }
 
+    public func sendMonitorCommandInternal(_ command: String, duration: TimeInterval) async throws -> [String] {
+        do {
+            return try await elm327.sendMonitorCommand(command, duration: duration)
+        } catch {
+            throw OBDServiceError.commandFailed(command: command, error: error)
+        }
+    }
+
     public func connectToPeripheral(peripheral: CBPeripheral) async throws {
         do {
             try await elm327.connectToAdapter(timeout: 5, peripheral: peripheral)
@@ -303,9 +494,13 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     public func scanForPeripherals() async throws {
         do {
             self.isScanning = true
+            onScanningChanged?(true)
             try await elm327.scanForPeripherals()
             self.isScanning = false
+            onScanningChanged?(false)
         } catch {
+            self.isScanning = false
+            onScanningChanged?(false)
             throw OBDServiceError.scanFailed(underlyingError: error)
         }
     }
@@ -373,6 +568,29 @@ public enum OBDServiceError: Error {
     case commandFailed(command: String, error: Error)
 }
 
+extension OBDServiceError: LocalizedError {
+    // Without this, every consumer's `.localizedDescription` produced the useless generic
+    // "OBDServiceError error N." — every case here wraps a real underlying transport/parse
+    // error (BLEManagerError, ELM327Error, ParserError, ...) that already describes itself
+    // properly; this was the one place in the chain that discarded it.
+    public var errorDescription: String? {
+        switch self {
+        case .noAdapterFound:
+            return "No OBD adapter found."
+        case .notConnectedToVehicle:
+            return "Connected to the adapter, but not to the vehicle."
+        case .adapterConnectionFailed(let underlying):
+            return "Adapter connection failed: \(underlying.localizedDescription)"
+        case .scanFailed(let underlying):
+            return "Trouble-code scan failed: \(underlying.localizedDescription)"
+        case .clearFailed(let underlying):
+            return "Clearing trouble codes failed: \(underlying.localizedDescription)"
+        case .commandFailed(let command, let underlying):
+            return "Command '\(command)' failed: \(underlying.localizedDescription)"
+        }
+    }
+}
+
 public struct MeasurementResult: Equatable {
     public var value: Double
     public let unit: Unit
@@ -416,4 +634,5 @@ public struct VINInfo: Codable, Hashable {
     public let Model: String
     public let ModelYear: String
     public let EngineCylinders: String
+    public let Trim: String?
 }

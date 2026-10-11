@@ -7,13 +7,87 @@
 
 import Foundation
 
-public struct TroubleCode: Codable, Hashable, Comparable {
+/// Which diagnostic service reported a DTC, i.e. how "mature"/persistent the
+/// fault is. Lets the UI badge a code as Confirmed (Mode $03), Pending (Mode
+/// $07), Permanent (Mode $0A) or Historical (UDS $19, stored but not failing now)
+/// rather than presenting every code the same way.
+public enum DTCStatus: String, Codable, Hashable, Sendable, CaseIterable {
+    /// Mode $03 — a matured, confirmed emission-related fault (MIL on).
+    case confirmed
+    /// Mode $07 — detected this drive cycle but not yet confirmed; clears on its
+    /// own if the fault doesn't recur.
+    case pending
+    /// Mode $0A — confirmed fault the ECU will retain until it self-verifies the
+    /// repair over several drive cycles; a scan-tool clear won't remove it.
+    case permanent
+    /// UDS $19 — confirmed and stored by the module, but its last test passed:
+    /// the fault happened before and is not present now.
+    case historical
+
+    /// SAE mode that produces this status, e.g. "03" / "07" / "0A".
+    public var mode: String {
+        switch self {
+        case .confirmed: return "03"
+        case .pending:   return "07"
+        case .permanent: return "0A"
+        case .historical: return "19"
+        }
+    }
+
+    /// Human label for the badge.
+    public var label: String {
+        switch self {
+        case .confirmed: return "Confirmed"
+        case .pending:   return "Pending"
+        case .permanent: return "Permanent"
+        case .historical: return "Historical"
+        }
+    }
+
+    /// Merge precedence when the same code surfaces from more than one mode:
+    /// permanent (most persistent) wins over confirmed, which wins over pending,
+    /// which wins over historical (not failing now).
+    public var priority: Int {
+        switch self {
+        case .permanent:  return 4
+        case .confirmed:  return 3
+        case .pending:    return 2
+        case .historical: return 1
+        }
+    }
+}
+
+public struct TroubleCode: Codable, Hashable, Comparable, Sendable {
     public static func < (lhs: TroubleCode, rhs: TroubleCode) -> Bool {
         lhs.code < rhs.code
     }
 
     public let code: String
     public var description: String
+    /// How the code was reported. Defaults to `.confirmed` so existing call
+    /// sites (and decoded Mode $03 results) keep their prior meaning.
+    public var status: DTCStatus
+
+    public init(code: String, description: String, status: DTCStatus = .confirmed) {
+        self.code = code
+        self.description = description
+        self.status = status
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case code, description, status
+    }
+
+    // Custom decode so reports persisted before `status` existed still load,
+    // defaulting those legacy codes to `.confirmed` (they came from Mode $03).
+    // `Decoder` is shadowed by this module's OBD `Decoder` protocol, so qualify
+    // the Swift standard-library one.
+    public init(from decoder: Swift.Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decode(String.self, forKey: .code)
+        description = try container.decode(String.self, forKey: .description)
+        status = try container.decodeIfPresent(DTCStatus.self, forKey: .status) ?? .confirmed
+    }
 }
 
 let codes: [String: String] = [

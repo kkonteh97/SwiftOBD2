@@ -1,94 +1,27 @@
-import Combine
-import CoreBluetooth
 import Foundation
-import OSLog
 
+/// Collects the notifications of the adapter's read characteristic into complete answers.
+///
+/// A BLE notification carries at most one MTU of data: an answer usually spans several of them
+/// and is only complete once the `>` prompt has been received.
 class BLEMessageProcessor {
-    private var buffer = Data()
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "BLEMessageProcessor")
-    private var messageCompletion: (([String]?, Error?) -> Void)?
+    private let reader = ELMResponseReader()
 
     func processReceivedData(_ data: Data) {
-        buffer.append(data)
-
-        guard let string = String(data: buffer, encoding: .utf8) else {
-            // Only clear if buffer is getting too large
-            if buffer.count > BLEConstants.maxBufferSize {
-                logger.warning("Buffer exceeded max size, clearing")
-                buffer.removeAll()
-            }
-            return
-        }
-
-        // Check for end of response marker
-        if string.contains(">") {
-            let response = parseResponse(from: string)
-            handleParsedResponse(response)
-            buffer.removeAll()
-        }
+        reader.receive(data)
     }
 
-    private func parseResponse(from string: String) -> [String] {
-        // Split by newlines and clean up
-        let lines = string
-            .replacingOccurrences(of: ">", with: "") // Remove prompt marker
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        logger.debug("Parsed response: \(lines)")
-        return lines
+    /// Runs `write`, then waits for the complete answer.
+    /// - Throws: `CommunicationError.timeout` when the prompt does not arrive in time,
+    ///   `CommunicationError.busy` when another command is still waiting for its answer.
+    func request(timeout: TimeInterval, write: @escaping () throws -> Void) async throws -> [String] {
+        try await reader.request(timeout: timeout, send: write)
     }
 
-    private func handleParsedResponse(_ lines: [String]) {
-       let completion = messageCompletion
-       messageCompletion = nil
-
-       guard let completion = completion else {
-           logger.warning("Received response with no pending completion")
-           return
-       }
-
-       if let firstLine = lines.first, firstLine.uppercased().contains("NO DATA") {
-           completion(nil, BLEManagerError.noData)
-       } else if lines.isEmpty {
-           completion(nil, BLEManagerError.noData)
-       } else {
-           completion(lines, nil)
-       }
-   }
-
-
-    func waitForResponse(timeout: TimeInterval) async throws -> [String] {
-            try await withTimeout(seconds: timeout, timeoutError: BLEMessageProcessorError.responseTimeout) { [self] in
-                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String], Error>) in
-
-                    // Check if there's already a pending command
-                    assert(messageCompletion == nil, "Concurrent command detected")
-
-
-                    messageCompletion = { response, error in
-                        if let response = response {
-                            continuation.resume(returning: response)
-                        } else if let error = error {
-                            continuation.resume(throwing: error)
-                        } else {
-                            continuation.resume(throwing: BLEMessageProcessorError.responseTimeout)
-                        }
-                    }
-
-                }
-            }
-        }
-
+    /// Fails the command in flight: the peripheral is gone.
     func reset() {
-           buffer.removeAll()
-           let completion = messageCompletion
-           messageCompletion = nil
-
-           // Call completion with error if it exists
-           completion?(nil, BLEManagerError.peripheralNotConnected)
-       }
+        reader.fail(CommunicationError.disconnected)
+    }
 }
 
 // MARK: - Error Types

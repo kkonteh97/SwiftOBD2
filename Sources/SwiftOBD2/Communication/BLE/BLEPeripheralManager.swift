@@ -1,23 +1,20 @@
-import Foundation
-import OSLog
-import CoreBluetooth
 import Combine
+import CoreBluetooth
+import Foundation
 
 protocol BLEPeripheralManagerDelegate: AnyObject {
     func peripheralManager(_ manager: BLEPeripheralManager, didSetupCharacteristics peripheral: CBPeripheral)
 }
 
+/// Owns the connected peripheral and walks through its services until the serial characteristics are found.
 class BLEPeripheralManager: NSObject, ObservableObject {
-    func didWriteValue(_ peripheral: CBPeripheral, descriptor: CBDescriptor, error: (any Error)?) {
-
-    }
-
     @Published var connectedPeripheral: CBPeripheral?
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "BLEPeripheralManager")
     private let characteristicHandler: BLECharacteristicHandler
 
     weak var delegate: BLEPeripheralManagerDelegate?
-    private var connectionCompletion: ((CBPeripheral?, Error?) -> Void)?
+
+    private let lock = NSLock()
+    private var setupCompletion: ((Result<Void, Error>) -> Void)?
 
     init(characteristicHandler: BLECharacteristicHandler) {
         self.characteristicHandler = characteristicHandler
@@ -30,57 +27,75 @@ class BLEPeripheralManager: NSObject, ObservableObject {
         connectedPeripheral?.delegate = self
 
         if let peripheral = peripheral {
-            peripheral.discoverServices(BLEPeripheralScanner.supportedServices)
+            // Ask for every service: adapters that do not use one of the usual serial services are
+            // handled by looking at the properties of their characteristics.
+            peripheral.discoverServices(nil)
         }
     }
 
-    func waitForCharacteristicsSetup(timeout: TimeInterval) async throws {
-        try await withTimeout(seconds: timeout) { [self] in
+    /// Runs `start` (which initiates the connection) and waits until the characteristics are ready.
+    func waitForCharacteristicsSetup(timeout: TimeInterval, start: @escaping () -> Void) async throws {
+        try await withTimeout(seconds: timeout, timeoutError: BLEManagerError.timeout, onTimeout: { [weak self] in
+            self?.finishSetup(.failure(BLEManagerError.timeout))
+        }, operation: { [self] in
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                self.connectionCompletion = { peripheral, error in
-                    if peripheral != nil {
-                        continuation.resume()
-                    } else if let error = error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(throwing: BLEManagerError.unknownError)
-                    }
+                // Registered before the connection starts so that a fast peripheral cannot be missed.
+                lock.sync {
+                    setupCompletion = { continuation.resume(with: $0) }
                 }
+                start()
             }
+        })
+    }
+
+    /// Ends the pending ``waitForCharacteristicsSetup(timeout:start:)``, if any.
+    func finishSetup(_ result: Result<Void, Error>) {
+        let completion: ((Result<Void, Error>) -> Void)? = lock.sync {
+            defer { setupCompletion = nil }
+            return setupCompletion
         }
+        completion?(result)
     }
 
     func didDiscoverServices(_ peripheral: CBPeripheral, error: Error?) {
-        for service in peripheral.services ?? [] {
-            logger.info("Discovered service: \(service.uuid.uuidString)")
+        if let error = error {
+            obdError("Error discovering services: \(error.localizedDescription)", category: .bluetooth)
+            finishSetup(.failure(error))
+            return
+        }
+        guard let services = peripheral.services, !services.isEmpty else {
+            finishSetup(.failure(BLEManagerError.unknownCharacteristic))
+            return
+        }
+        for service in services {
+            obdDebug("Discovered service: \(service.uuid.uuidString)", category: .bluetooth)
             characteristicHandler.discoverCharacteristics(for: service, on: peripheral)
         }
     }
 
     func didDiscoverCharacteristics(_ peripheral: CBPeripheral, service: CBService, error: Error?) {
         if let error = error {
-            logger.error("Error discovering characteristics: \(error.localizedDescription)")
-            connectionCompletion?(nil, error)
+            // Another service may still provide what we need: let the time-out decide.
+            obdWarning("Error discovering characteristics of \(service.uuid.uuidString): \(error.localizedDescription)", category: .bluetooth)
             return
         }
 
         guard let characteristics = service.characteristics else { return }
+        let wasReady = characteristicHandler.isReady
 
         characteristicHandler.setupCharacteristics(characteristics, on: peripheral)
 
         // Check if all required characteristics are set up
-        if characteristicHandler.isReady {
-            connectionCompletion?(peripheral, nil)
-            connectionCompletion = nil
-
+        if characteristicHandler.isReady, !wasReady {
             // Notify delegate
             delegate?.peripheralManager(self, didSetupCharacteristics: peripheral)
+            finishSetup(.success(()))
         }
     }
 
     func didUpdateValue(_: CBPeripheral, characteristic: CBCharacteristic, error: Error?) {
         if let error = error {
-            logger.error("Error reading characteristic value: \(error.localizedDescription)")
+            obdError("Error reading characteristic value: \(error.localizedDescription)", category: .bluetooth)
             return
         }
 

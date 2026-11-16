@@ -7,13 +7,75 @@
 
 import Foundation
 
+/// Where a trouble code comes from, i.e. which diagnostic service reported it.
+public enum TroubleCodeKind: String, Codable, CaseIterable {
+    /// Confirmed code, stored in the ECU memory (service 03).
+    case stored
+    /// Detected during the current or last drive cycle, not confirmed yet (service 07).
+    case pending
+    /// Confirmed code that can only be erased by the ECU itself after a successful self test (service 0A).
+    case permanent
+
+    /// The OBD-II service that reports this kind of code.
+    var service: String {
+        switch self {
+        case .stored: return "03"
+        case .pending: return "07"
+        case .permanent: return "0A"
+        }
+    }
+}
+
 public struct TroubleCode: Codable, Hashable, Comparable {
     public static func < (lhs: TroubleCode, rhs: TroubleCode) -> Bool {
         lhs.code < rhs.code
     }
 
+    /// The five character code, e.g. `P0301`.
     public let code: String
     public var description: String
+    public var kind: TroubleCodeKind
+    /// Failure type byte, only reported by manufacturer (UDS) diagnostics.
+    public var failureType: UInt8?
+    /// Raw status byte, only reported by manufacturer (UDS) diagnostics.
+    public var statusByte: UInt8?
+
+    public init(code: String, description: String? = nil, kind: TroubleCodeKind = .stored, failureType: UInt8? = nil, statusByte: UInt8? = nil) {
+        self.code = code
+        self.description = description ?? TroubleCode.description(for: code)
+        self.kind = kind
+        self.failureType = failureType
+        self.statusByte = statusByte
+    }
+
+    /// The generic (SAE J2012) description of a code. Manufacturer specific codes (`P1xxx`…) have none.
+    public static func description(for code: String) -> String {
+        codes[code.uppercased()] ?? "No description available."
+    }
+
+    /// `true` for the codes whose meaning is defined by the vehicle manufacturer rather than by SAE.
+    public var isManufacturerSpecific: Bool {
+        let digits = Array(code)
+        guard digits.count >= 2 else { return false }
+        switch (digits[0], digits[1]) {
+        case ("P", "1"), ("C", "1"), ("C", "2"), ("B", "1"), ("B", "2"), ("U", "1"), ("U", "2"): return true
+        case ("P", "3"): return code < "P3400"
+        default: return false
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case code, description, kind, failureType, statusByte
+    }
+
+    public init(from decoder: Swift.Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decode(String.self, forKey: .code)
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? TroubleCode.description(for: code)
+        kind = try container.decodeIfPresent(TroubleCodeKind.self, forKey: .kind) ?? .stored
+        failureType = try container.decodeIfPresent(UInt8.self, forKey: .failureType)
+        statusByte = try container.decodeIfPresent(UInt8.self, forKey: .statusByte)
+    }
 }
 
 let codes: [String: String] = [

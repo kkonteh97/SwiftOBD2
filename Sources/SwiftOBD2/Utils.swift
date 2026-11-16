@@ -9,41 +9,51 @@ import Foundation
 
 func bytesToInt(_ byteArray: Data) -> Int {
     var value = 0
-    var power = 0
-
-    for byte in byteArray.reversed() {
-        value += Int(byte) << power
-        power += 8
+    for byte in byteArray.prefix(8) {
+        value = value << 8 | Int(byte)
     }
     return value
 }
 
-// enum RESPONSE {
-//
-//    enum ERROR: String {
-//
-//        case QUESTION_MARK = "?",
-//             ACT_ALERT = "ACT ALERT",
-//             BUFFER_FULL = "BUFFER FULL",
-//             BUS_BUSSY = "BUS BUSSY",
-//             BUS_ERROR = "BUS ERROR",
-//             CAN_ERROR = "CAN ERROR",
-//             DATA_ERROR = "DATA ERROR",
-//             ERRxx = "ERR",
-//             FB_ERROR = "FB ERROR",
-//             LP_ALERT = "LP ALERT",
-//             LV_RESET = "LV RESET",
-//             NO_DATA = "NO DATA",
-//             RX_ERROR = "RX ERROR",
-//             STOPPED = "STOPPED",
-//             UNABLE_TO_CONNECT = "UNABLE TO CONNECT"
-//
-//        static let asArray: [ERROR] = [QUESTION_MARK, ACT_ALERT, BUFFER_FULL, BUS_BUSSY,
-//                                       BUS_ERROR, CAN_ERROR, DATA_ERROR, ERRxx, FB_ERROR,
-//                                       LP_ALERT, LV_RESET, NO_DATA, RX_ERROR,STOPPED,
-//                                       UNABLE_TO_CONNECT]
-//    }
-// }
+/// Interprets the lowest `length` bits of `value` as a two's complement signed number.
+func twosComp(_ value: Int, length: Int) -> Int {
+    guard length > 0, length < Int.bitWidth else { return value }
+    let masked = value & ((1 << length) - 1)
+    return masked & (1 << (length - 1)) != 0 ? masked - (1 << length) : masked
+}
+
+extension String {
+    /// The bytes described by a string of hexadecimal digit pairs. Invalid pairs are skipped.
+    var hexBytes: [UInt8] {
+        var position = startIndex
+        return (0 ..< count / 2).compactMap { _ in
+            defer { position = index(position, offsetBy: 2) }
+            return UInt8(self[position ... index(after: position)], radix: 16)
+        }
+    }
+
+    var isHex: Bool {
+        !isEmpty && allSatisfy(\.isHexDigit)
+    }
+
+    /// The string without any whitespace, in uppercase: the canonical form of a command.
+    var compactUppercased: String {
+        uppercased().filter { !$0.isWhitespace }
+    }
+}
+
+extension Sequence where Element == UInt8 {
+    /// Uppercase hexadecimal representation without separator.
+    var hexString: String {
+        map { String(format: "%02X", $0) }.joined()
+    }
+}
+
+extension Data {
+    func bitCount() -> Int {
+        reduce(0) { $0 + $1.nonzeroBitCount }
+    }
+}
 
 public enum PROTOCOL: String, Codable, CaseIterable {
     case
@@ -74,16 +84,41 @@ public enum PROTOCOL: String, Codable, CaseIterable {
         case .protocol9: return "9: ISO 15765-4 CAN (29 bit ID,250 Kbaud)"
         case .protocolA: return "A: SAE J1939 CAN (11* bit ID, 250* kbaud)"
         case .protocolB: return "B: USER1 CAN (11* bit ID, 125* kbaud)"
-        case .protocolC: return "C: USER1 CAN (11* bit ID, 50* kbaud)"
+        case .protocolC: return "C: USER2 CAN (11* bit ID, 50* kbaud)"
         case .NONE: return "None"
         }
     }
 
     var idBits: Int {
         switch self {
-        case .protocol6, .protocol8, .protocolB: return 11
+        case .protocol6, .protocol8, .protocolB, .protocolC: return 11
         default: return 29
         }
+    }
+
+    /// `true` for the protocols carried over CAN (ISO 15765-4, SAE J1939 and the user defined ones).
+    public var isCAN: Bool {
+        switch self {
+        case .protocol6, .protocol7, .protocol8, .protocol9, .protocolA, .protocolB, .protocolC: return true
+        default: return false
+        }
+    }
+
+    /// The header (`AT SH`) the ELM327 uses for standard OBD-II requests on this protocol.
+    var defaultHeader: String? {
+        switch self {
+        case .protocol1: return "616AF1"
+        case .protocol2, .protocol3: return "686AF1"
+        case .protocol4, .protocol5: return "C133F1"
+        case .protocol6, .protocol8: return "7DF"
+        case .protocol7, .protocol9: return "18DB33F1"
+        default: return nil
+        }
+    }
+
+    /// Parses adapter output for this protocol.
+    var parser: CANProtocol? {
+        protocols[self]
     }
 
     func nextProtocol() -> PROTOCOL {
@@ -128,4 +163,6 @@ let protocols: [PROTOCOL: CANProtocol] = [
     .protocol8: ISO_15765_4_11bit_250K(),
     .protocol9: ISO_15765_4_29bit_250k(),
     .protocolA: SAE_J1939(),
+    .protocolB: UserCAN(elmID: "B", name: "USER1 CAN"),
+    .protocolC: UserCAN(elmID: "C", name: "USER2 CAN"),
 ]

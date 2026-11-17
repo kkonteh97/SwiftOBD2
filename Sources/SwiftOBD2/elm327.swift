@@ -444,6 +444,27 @@ class ELM327 {
     /// Sends a single DTC service command ($03/$07/$0A) and decodes the per-ECU
     /// codes, tagging each with the originating `status`. The three services
     /// share the same 2-byte DTC payload, so they all decode via `.dtc`.
+    /// The two-byte trouble codes in a Mode 03/07/0A message's `data`, as the parsers deliver it.
+    ///
+    /// - **CAN (ISO 15765-4):** the parser drops the PCI and the `43`/`47`/`4A` echo, leaving
+    ///   `<count> <codes>`: always an odd length, since ISO 15031-5 puts a count byte before the
+    ///   codes on CAN. The count is dropped. `decode` used to drop it until commit f8e33ec
+    ///   (2026-05-17) stopped dropping a byte for Mode 01, after which the count was decoded as
+    ///   half of the first code and every code after it was shifted: one stored P0A11
+    ///   (`7E8 04 43 01 0A 11`) read as P010A. The Jaguar I-Pace was seen sending the count
+    ///   (`7E8 02 43 00`, 2026-11-17). An even length has no count byte and is left alone.
+    /// - **Legacy (J1850, ISO 9141, KWP):** the parser prefixes Mode 03 replies with a `43 00`
+    ///   placeholder (python-OBD's shape, whose decoder drops two bytes). Nothing dropped it, so
+    ///   every legacy fault scan reported a phantom C0300. Dropped here.
+    static func dtcCodeBytes(_ data: Data, isLegacy: Bool) -> Data {
+        let bytes = Data(data)
+        if isLegacy {
+            if bytes.count >= 2, bytes[0] == 0x43, bytes[1] == 0x00 { return Data(bytes.dropFirst(2)) }
+            return bytes
+        }
+        return bytes.count % 2 == 1 ? Data(bytes.dropFirst()) : bytes
+    }
+
     private func scanDTCs(command: String, status: DTCStatus) async throws -> [ECUID: [TroubleCode]] {
         let response = try await sendCommand(command)
         guard let messages = try canProtocol?.parse(response) else { return [:] }
@@ -451,7 +472,8 @@ class ELM327 {
         var result: [ECUID: [TroubleCode]] = [:]
         for message in messages {
             guard let data = message.data else { continue }
-            switch OBDCommand.Mode3.GET_DTC.properties.decode(data: data) {
+            let codeBytes = Self.dtcCodeBytes(data, isLegacy: message is LegacyMessage)
+            switch OBDCommand.Mode3.GET_DTC.properties.decode(data: codeBytes) {
             case let .success(decoded):
                 let tagged = (decoded.troubleCode ?? []).map {
                     TroubleCode(code: $0.code, description: $0.description, status: status)

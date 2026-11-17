@@ -45,7 +45,7 @@ func bytesToInt(_ byteArray: Data) -> Int {
 //    }
 // }
 
-public enum PROTOCOL: String, Codable, CaseIterable {
+public enum PROTOCOL: String, Codable, CaseIterable, Sendable {
     case
         protocol1 = "1",
         protocol2 = "2",

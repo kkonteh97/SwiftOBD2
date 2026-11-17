@@ -69,8 +69,24 @@ public class OBDLogger {
         log(message, level: .fault, category: category, file: file, function: function, line: line)
     }
     
+    /// `OSLogType`'s raw values aren't ordered by severity (debug=2, info=1, default=0,
+    /// error=16, fault=17) — comparing `.rawValue` directly against the default
+    /// `minimumLogLevel = .debug` inverted the filter: `.info`/`.default` (warning) were
+    /// silently dropped while `.debug` passed, the opposite of "show this level and
+    /// everything more severe."
+    private func severityRank(_ level: OSLogType) -> Int {
+        switch level {
+        case .debug: return 0
+        case .info: return 1
+        case .default: return 2
+        case .error: return 3
+        case .fault: return 4
+        default: return 2
+        }
+    }
+
     private func log(_ message: String, level: OSLogType, category: Category, file: String, function: String, line: Int) {
-        guard isLoggingEnabled && level.rawValue >= minimumLogLevel.rawValue else { return }
+        guard isLoggingEnabled && severityRank(level) >= severityRank(minimumLogLevel) else { return }
         guard let logger = loggers[category] else { return }
         
         let fileName = URL(fileURLWithPath: file).lastPathComponent

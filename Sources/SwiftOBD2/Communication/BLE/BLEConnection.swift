@@ -1,7 +1,6 @@
 import Combine
 import CoreBluetooth
 import Foundation
-import OSLog
 
 /// Protocol for BLE connection operations
 protocol BLEConnectionProtocol {
@@ -19,7 +18,6 @@ protocol BLEConnectionProtocol {
 class BLEConnection: NSObject, BLEConnectionProtocol {
     // MARK: - Properties
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.swiftobd2.app", category: "BLEConnection")
 
     private weak var centralManager: CBCentralManager?
     private let supportedServices: [CBUUID]
@@ -51,7 +49,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
         self.centralManager = centralManager
         self.supportedServices = supportedServices
         super.init()
-        logger.debug("BLEConnection initialized with services: \(supportedServices.map(\.uuidString))")
+        obdDebug("BLEConnection initialized with services: \(supportedServices.map(\.uuidString))", category: .bluetooth)
     }
 
     static let defaultServices = [
@@ -75,7 +73,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
             throw BLEConnectionError.alreadyConnected
         }
 
-        logger.info("Attempting to connect to peripheral: \(peripheral.name ?? peripheral.identifier.uuidString) with timeout: \(timeout)s")
+        obdInfo("Attempting to connect to peripheral: \(peripheral.name ?? peripheral.identifier.uuidString) with timeout: \(timeout)s", category: .bluetooth)
 
         return try await withTimeout(
             seconds: timeout,
@@ -85,7 +83,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
                 if let completion = self?.connectionCompletion {
                     completion(nil, BLEConnectionError.connectionTimeout)
                 }
-                self?.logger.error("Connection timed out after \(timeout) seconds")
+                obdError("Connection timed out after \(timeout) seconds", category: .bluetooth)
                 centralManager.cancelPeripheralConnection(peripheral)
                 self?.resetConnectionState()
                 // Clear the completion handler to prevent double-resuming
@@ -99,20 +97,20 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
                     self.connectionCompletion = { [weak self] connectedPeripheral, error in
                         // Ensure we only resume once
                         guard !hasResumed else {
-                            self?.logger.debug("Connection completion called but continuation already resumed")
+                            obdDebug("Connection completion called but continuation already resumed", category: .bluetooth)
                             return
                         }
                         hasResumed = true
 
                         if let connectedPeripheral = connectedPeripheral {
-                            self?.logger.info("Successfully connected and configured: \(connectedPeripheral.name ?? connectedPeripheral.identifier.uuidString)")
+                            obdInfo("Successfully connected and configured: \(connectedPeripheral.name ?? connectedPeripheral.identifier.uuidString)", category: .bluetooth)
                             continuation.resume(returning: ())
                         } else if let error = error {
-                            self?.logger.error("Connection failed: \(error.localizedDescription)")
+                            obdError("Connection failed: \(error.localizedDescription)", category: .bluetooth)
                             self?.resetConnectionState()
                             continuation.resume(throwing: error)
                         } else {
-                            self?.logger.error("Connection failed with unknown error")
+                            obdError("Connection failed with unknown error", category: .bluetooth)
                             self?.resetConnectionState()
                             continuation.resume(throwing: BLEConnectionError.connectionFailed)
                         }
@@ -129,7 +127,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
                     // Stop scanning to avoid interference
                     if centralManager.isScanning {
                         centralManager.stopScan()
-                        self.logger.debug("Stopped scanning to focus on connection")
+                        obdDebug("Stopped scanning to focus on connection", category: .bluetooth)
                     }
                 }
             }
@@ -138,11 +136,11 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
     func disconnect() {
         guard let peripheral = connectedPeripheral else {
-            logger.debug("No peripheral connected to disconnect")
+            obdDebug("No peripheral connected to disconnect", category: .bluetooth)
             return
         }
 
-        logger.info("Disconnecting from peripheral: \(peripheral.name ?? peripheral.identifier.uuidString)")
+        obdInfo("Disconnecting from peripheral: \(peripheral.name ?? peripheral.identifier.uuidString)", category: .bluetooth)
         centralManager?.cancelPeripheralConnection(peripheral)
     }
 
@@ -154,7 +152,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
         // Accept if we have at least one characteristic, or if read/write are the same (like FFE1)
         let hasCharacteristics = hasReadChar && (hasWriteChar || ecuReadCharacteristic == ecuWriteCharacteristic)
 
-        logger.debug("isReady check - Connection: \(hasConnection), Read: \(hasReadChar), Write: \(hasWriteChar), Same: \(self.ecuReadCharacteristic == self.ecuWriteCharacteristic)")
+        obdDebug("isReady check - Connection: \(hasConnection), Read: \(hasReadChar), Write: \(hasWriteChar), Same: \(self.ecuReadCharacteristic == self.ecuWriteCharacteristic)", category: .bluetooth)
 
         return hasConnection && hasCharacteristics
     }
@@ -162,7 +160,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
     // MARK: - Internal Connection Handling
 
     func handleDidConnect(_ peripheral: CBPeripheral) {
-        logger.info("Connected to peripheral: \(peripheral.name ?? "Unnamed")")
+        obdInfo("Connected to peripheral: \(peripheral.name ?? "Unnamed")", category: .bluetooth)
         connectedPeripheral = peripheral
         connectionState = .connectedToAdapter
 
@@ -187,9 +185,9 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
     func handleDidDisconnect(_ peripheral: CBPeripheral, error: Error?) {
         if let error = error {
-            logger.warning("Disconnected from peripheral with error: \(error.localizedDescription)")
+            obdError("Disconnected from peripheral with error: \(error.localizedDescription)", category: .bluetooth)
         } else {
-            logger.info("Disconnected from peripheral: \(peripheral.name ?? "Unnamed")")
+            obdInfo("Disconnected from peripheral: \(peripheral.name ?? "Unnamed")", category: .bluetooth)
         }
 
         resetConnectionState()
@@ -197,13 +195,13 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
     func handleDidFailToConnect(_: CBPeripheral, error: Error?) {
         let errorMessage = error?.localizedDescription ?? "Unknown error"
-        logger.error("Failed to connect to peripheral: \(errorMessage)")
+        obdError("Failed to connect to peripheral: \(errorMessage)", category: .bluetooth)
 
         // Only call completion if it hasn't been cleared by timeout
         if let completion = connectionCompletion {
             completion(nil, error ?? BLEConnectionError.connectionFailed)
         } else {
-            logger.debug("Connection failure handled but completion was already cleared (likely by timeout)")
+            obdDebug("Connection failure handled but completion was already cleared (likely by timeout)", category: .bluetooth)
         }
     }
 
@@ -211,44 +209,44 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
     func handleDidDiscoverServices(_ peripheral: CBPeripheral, error: Error?) {
         if let error = error {
-            logger.error("Service discovery failed: \(error.localizedDescription)")
+            obdError("Service discovery failed: \(error.localizedDescription)", category: .bluetooth)
             connectionTimeout?.cancel()
             // Only call completion if it hasn't been cleared by timeout
             if let completion = connectionCompletion {
                 completion(nil, error)
             } else {
-                logger.debug("Service discovery failure handled but completion was already cleared (likely by timeout)")
+                obdDebug("Service discovery failure handled but completion was already cleared (likely by timeout)", category: .bluetooth)
             }
             return
         }
 
         guard let services = peripheral.services, !services.isEmpty else {
-            logger.error("No services found on peripheral")
+            obdError("No services found on peripheral", category: .bluetooth)
             connectionTimeout?.cancel()
             // Only call completion if it hasn't been cleared by timeout
             if let completion = connectionCompletion {
                 completion(nil, BLEConnectionError.noServicesFound)
             } else {
-                logger.debug("No services found but completion was already cleared (likely by timeout)")
+                obdDebug("No services found but completion was already cleared (likely by timeout)", category: .bluetooth)
             }
             return
         }
 
-        logger.info("Discovered \(services.count) services")
+        obdInfo("Discovered \(services.count) services", category: .bluetooth)
         var compatibleServices = 0
 
         for service in services {
-            logger.info("Discovered service: \(service.uuid.uuidString)")
+            obdInfo("Discovered service: \(service.uuid.uuidString)", category: .bluetooth)
             if supportedServices.contains(service.uuid) {
                 compatibleServices += 1
                 discoverCharacteristicsForService(service, on: peripheral)
             } else {
-                logger.debug("Service \(service.uuid.uuidString) not in supported list, skipping")
+                obdDebug("Service \(service.uuid.uuidString) not in supported list, skipping", category: .bluetooth)
             }
         }
 
         if compatibleServices == 0 {
-            logger.warning("No compatible services found, but continuing anyway")
+            obdInfo("No compatible services found, but continuing anyway", category: .bluetooth)
             // Still try to discover characteristics for all services as fallback
             for service in services {
                 discoverCharacteristicsForService(service, on: peripheral)
@@ -258,12 +256,12 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
     func handleDidDiscoverCharacteristics(_ peripheral: CBPeripheral, service: CBService, error: Error?) {
         if let error = error {
-            logger.error("Characteristic discovery failed: \(error.localizedDescription)")
+            obdError("Characteristic discovery failed: \(error.localizedDescription)", category: .bluetooth)
             return
         }
 
         guard let characteristics = service.characteristics, !characteristics.isEmpty else {
-            logger.warning("No characteristics found for service: \(service.uuid.uuidString)")
+            obdInfo("No characteristics found for service: \(service.uuid.uuidString)", category: .bluetooth)
             return
         }
 
@@ -277,17 +275,17 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
 
         // For some adapters, the same characteristic handles both read/write (like FFE1)
         if hasReadCharacteristic && (hasWriteCharacteristic || ecuReadCharacteristic == ecuWriteCharacteristic) {
-            logger.info("Required characteristics discovered and configured")
+            obdInfo("Required characteristics discovered and configured", category: .bluetooth)
             connectionTimeout?.cancel() // Cancel timeout since we succeeded
             connectionTimeout = nil
             // Only call completion if it hasn't been cleared by timeout
             if let completion = connectionCompletion {
                 completion(peripheral, nil)
             } else {
-                logger.debug("Characteristics discovered but completion was already cleared (likely by timeout)")
+                obdDebug("Characteristics discovered but completion was already cleared (likely by timeout)", category: .bluetooth)
             }
         } else {
-            logger.debug("Still waiting for characteristics - Read: \(hasReadCharacteristic), Write: \(hasWriteCharacteristic)")
+            obdDebug("Still waiting for characteristics - Read: \(hasReadCharacteristic), Write: \(hasWriteCharacteristic)", category: .bluetooth)
         }
     }
 
@@ -314,12 +312,12 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
         let uuid = characteristic.uuid.uuidString.uppercased()
         let properties = characteristic.properties
 
-        logger.debug("Configuring characteristic \(uuid) with properties: \(String(describing: properties))")
+        obdDebug("Configuring characteristic \(uuid) with properties: \(String(describing: properties))", category: .bluetooth)
 
         // Enable notifications if supported
         if properties.contains(.notify) {
             peripheral.setNotifyValue(true, for: characteristic)
-            logger.debug("Enabled notifications for characteristic: \(uuid)")
+            obdDebug("Enabled notifications for characteristic: \(uuid)", category: .bluetooth)
         }
 
         // Assign characteristics based on UUID and properties
@@ -327,47 +325,47 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
         case "FFE1": // For service FFE0 - typically both read/write
             ecuWriteCharacteristic = characteristic
             ecuReadCharacteristic = characteristic
-            logger.info("Configured FFE1 as both read and write characteristic")
+            obdInfo("Configured FFE1 as both read and write characteristic", category: .bluetooth)
 
         case "FFF1": // For service FFF0 - typically read
             if properties.contains(.read) || properties.contains(.notify) {
                 ecuReadCharacteristic = characteristic
-                logger.info("Configured FFF1 as read characteristic")
+                obdInfo("Configured FFF1 as read characteristic", category: .bluetooth)
             }
 
         case "FFF2": // For service FFF0 - typically write
             if properties.contains(.write) || properties.contains(.writeWithoutResponse) {
                 ecuWriteCharacteristic = characteristic
-                logger.info("Configured FFF2 as write characteristic")
+                obdInfo("Configured FFF2 as write characteristic", category: .bluetooth)
             }
 
         case "2AF0": // For service 18F0 - typically read
             ecuReadCharacteristic = characteristic
-            logger.info("Configured 2AF0 as read characteristic")
+            obdInfo("Configured 2AF0 as read characteristic", category: .bluetooth)
 
         case "2AF1": // For service 18F0 - typically write
             ecuWriteCharacteristic = characteristic
-            logger.info("Configured 2AF1 as write characteristic")
+            obdInfo("Configured 2AF1 as write characteristic", category: .bluetooth)
 
         default:
-            logger.debug("Unknown characteristic \(uuid), attempting auto-assignment based on properties")
+            obdDebug("Unknown characteristic \(uuid), attempting auto-assignment based on properties", category: .bluetooth)
 
             // Fallback: auto-assign based on properties if we don't have characteristics yet
             if ecuReadCharacteristic == nil && (properties.contains(.read) || properties.contains(.notify)) {
                 ecuReadCharacteristic = characteristic
-                logger.info("Auto-assigned \(uuid) as read characteristic based on properties")
+                obdInfo("Auto-assigned \(uuid) as read characteristic based on properties", category: .bluetooth)
             }
 
             if ecuWriteCharacteristic == nil && (properties.contains(.write) || properties.contains(.writeWithoutResponse)) {
                 ecuWriteCharacteristic = characteristic
-                logger.info("Auto-assigned \(uuid) as write characteristic based on properties")
+                obdInfo("Auto-assigned \(uuid) as write characteristic based on properties", category: .bluetooth)
             }
 
             // If it supports both, assign as both (like FFE1)
             if properties.contains(.read) && properties.contains(.write) && ecuReadCharacteristic == nil && ecuWriteCharacteristic == nil {
                 ecuReadCharacteristic = characteristic
                 ecuWriteCharacteristic = characteristic
-                logger.info("Auto-assigned \(uuid) as both read and write characteristic")
+                obdInfo("Auto-assigned \(uuid) as both read and write characteristic", category: .bluetooth)
             }
         }
     }
@@ -387,7 +385,7 @@ class BLEConnection: NSObject, BLEConnectionProtocol {
     deinit {
         disconnect()
         connectionTimeout?.cancel()
-        logger.debug("BLEConnection deinitialized")
+        obdDebug("BLEConnection deinitialized", category: .bluetooth)
     }
 }
 

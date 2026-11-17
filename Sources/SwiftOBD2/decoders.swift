@@ -17,21 +17,45 @@ public enum MeasurementUnit: String, Codable {
 }
 
 public struct Status: Codable, Hashable {
-    var MIL: Bool = false
+    // Only `dtcCount` was public before — MIL (the check-engine light itself) and the
+    // per-monitor readiness fields were unreachable from outside this module despite
+    // `Status` being public, silently blocking any consumer from building a "check
+    // engine / inspection readiness" feature on top of PID 0101.
+    public var MIL: Bool = false
     public var dtcCount: UInt8 = 0
-    var ignitionType: String = ""
+    public var ignitionType: String = ""
 
-    var misfireMonitoring = StatusTest()
-    var fuelSystemMonitoring = StatusTest()
-    var componentMonitoring = StatusTest()
+    public var misfireMonitoring = StatusTest()
+    public var fuelSystemMonitoring = StatusTest()
+    public var componentMonitoring = StatusTest()
+
+    // Bytes C (availability) and D (completion) of PID 0101 — 8 more monitors that were
+    // never decoded at all (the old decoder only looked at bytes A/B). Field names use
+    // spark-ignition (gasoline) semantics per SAE J1979 since that covers the vast
+    // majority of consumer vehicles; on a compression-ignition (diesel) vehicle the same
+    // 8 bit slots carry different real-world meaning, so a consuming app should relabel
+    // them using `ignitionType`.
+    public var catalystMonitoring = StatusTest()
+    public var heatedCatalystMonitoring = StatusTest()
+    public var evapSystemMonitoring = StatusTest()
+    public var secondaryAirSystemMonitoring = StatusTest()
+    public var auxInputMonitoring = StatusTest() // gasoline particulate filter, on GPF-equipped vehicles
+    public var oxygenSensorMonitoring = StatusTest()
+    public var oxygenSensorHeaterMonitoring = StatusTest()
+    public var egrOrVvtMonitoring = StatusTest()
+
+    // The fields above are public but the synthesized memberwise initializer is not, so
+    // without this a consumer could read a decoded `Status` and never build one — no
+    // previews, no test fixtures, no placeholder while a read is in flight.
+    public init() {}
 }
 
-struct StatusTest: Codable, Hashable {
-    var name: String = ""
-    var supported: Bool = false
-    var ready: Bool = false
+public struct StatusTest: Codable, Hashable {
+    public var name: String = ""
+    public var supported: Bool = false
+    public var ready: Bool = false
 
-    init(_ name: String = "", _ supported: Bool = false, _ ready: Bool = false) {
+    public init(_ name: String = "", _ supported: Bool = false, _ ready: Bool = false) {
         self.name = name
         self.supported = supported
         self.ready = ready
@@ -61,10 +85,22 @@ struct BitArray {
     func value(at range: Range<Int>) -> UInt8 {
         var value: UInt8 = 0
         for bit in range {
+            guard let bitValue = binaryArray[safe: bit] else { return 0 }
             value = value << 1
-            value = value | UInt8(binaryArray[bit])
+            value = value | UInt8(bitValue)
         }
         return value
+    }
+}
+
+extension Collection where Index == Int {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+
+    subscript(safe range: Range<Int>) -> SubSequence? {
+        guard range.lowerBound >= startIndex, range.upperBound <= endIndex else { return nil }
+        return self[range]
     }
 }
 
@@ -90,12 +126,14 @@ class UAS {
     let scale: Double
     var unit: Unit
     let offset: Double
+    let minBytes: Int
 
-    init(signed: Bool, scale: Double, unit: Unit, offset: Double = 0.0) {
+    init(signed: Bool, scale: Double, unit: Unit, offset: Double = 0.0, minBytes: Int = 1) {
         self.signed = signed
         self.scale = scale
         self.unit = unit
         self.offset = offset
+        self.minBytes = minBytes
     }
 
     func decode(bytes: Data, _ unit_: MeasurementUnit = .metric) -> MeasurementResult {
@@ -141,50 +179,58 @@ class UAS {
 }
 
 func twosComp(_ value: Int, length: Int) -> Int {
+    // `value` always arrives already masked to `length` bits (from `bytesToInt`, which
+    // only ever returns 0...2^length-1), so `value & mask` was a pure no-op — this could
+    // never actually produce a negative number. The top half of the range must fold back
+    // negative: e.g. for an 8-bit value, 0x80...0xFF (128...255) means -128...-1.
     let mask = (1 << length) - 1
-    return value & mask
+    let masked = value & mask
+    let signBit = 1 << (length - 1)
+    return masked >= signBit ? masked - (1 << length) : masked
 }
 
 private var uasIDS: [UInt8: UAS] = {
     return [
-    // Unsigned
+    // Unsigned — 1-byte types (minBytes defaults to 1)
     0x01: UAS(signed: false, scale: 1.0, unit: Unit.count),
     0x02: UAS(signed: false, scale: 0.1, unit: Unit.count),
     0x03: UAS(signed: false, scale: 0.01, unit: Unit.count),
     0x04: UAS(signed: false, scale: 0.001, unit: Unit.count),
     0x05: UAS(signed: false, scale: 0.0000305, unit: Unit.count),
     0x06: UAS(signed: false, scale: 0.000305, unit: Unit.count),
-    0x07: UAS(signed: false, scale: 0.25, unit: Unit.rpm),
-    0x09: UAS(signed: false, scale: 1, unit: UnitSpeed.kilometersPerHour),
+    // Multi-byte types — minBytes: 2 rejects garbage 1-byte default responses (e.g. 0x11)
+    0x07: UAS(signed: false, scale: 0.25, unit: Unit.rpm, minBytes: 2),
+    0x09: UAS(signed: false, scale: 1, unit: UnitSpeed.kilometersPerHour, minBytes: 2),
 
-    0x0A: UAS(signed: false, scale: 0.122, unit: UnitElectricPotentialDifference.millivolts),
-    0x0B: UAS(signed: false, scale: 0.001, unit: UnitElectricPotentialDifference.volts),
+    0x0A: UAS(signed: false, scale: 0.122, unit: UnitElectricPotentialDifference.millivolts, minBytes: 2),
+    0x0B: UAS(signed: false, scale: 0.001, unit: UnitElectricPotentialDifference.volts, minBytes: 2),
 
-    0x10: UAS(signed: false, scale: 1, unit: UnitDuration.milliseconds),
-    0x11: UAS(signed: false, scale: 100, unit: UnitDuration.milliseconds),
-    0x12: UAS(signed: false, scale: 1, unit: UnitDuration.seconds),
-    0x13: UAS(signed: false, scale: 1, unit: UnitElectricResistance.microohms),
-    0x14: UAS(signed: false, scale: 1, unit: UnitElectricResistance.ohms),
-    0x15: UAS(signed: false, scale: 1, unit: UnitElectricResistance.kiloohms),
-    0x16: UAS(signed: false, scale: 0.1, unit: UnitTemperature.celsius, offset: -40.0),
-    0x17: UAS(signed: false, scale: 0.01, unit: UnitPressure.kilopascals),
-    0x18: UAS(signed: false, scale: 0.0117, unit: UnitPressure.kilopascals),
-    0x19: UAS(signed: false, scale: 0.079, unit: UnitPressure.kilopascals),
-    0x1A: UAS(signed: false, scale: 1, unit: UnitPressure.kilopascals),
-    0x1B: UAS(signed: false, scale: 10, unit: UnitPressure.kilopascals),
-    0x1C: UAS(signed: false, scale: 0.01, unit: UnitAngle.degrees),
-    0x1D: UAS(signed: false, scale: 0.5, unit: UnitAngle.degrees),
-    // unit ratio
-    0x1E: UAS(signed: false, scale: 0.0000305, unit: Unit.ratio),
-    0x1F: UAS(signed: false, scale: 0.05, unit: Unit.ratio),
-    0x20: UAS(signed: false, scale: 0.00390625, unit: Unit.ratio),
-    0x21: UAS(signed: false, scale: 1, unit: UnitFrequency.millihertz),
-    0x22: UAS(signed: false, scale: 1, unit: UnitFrequency.hertz),
-    0x23: UAS(signed: false, scale: 1, unit: UnitFrequency.kilohertz),
-    0x24: UAS(signed: false, scale: 1, unit: Unit.count),
-    0x25: UAS(signed: false, scale: 1, unit: UnitLength.kilometers),
+    0x10: UAS(signed: false, scale: 1, unit: UnitDuration.milliseconds, minBytes: 2),
+    0x11: UAS(signed: false, scale: 100, unit: UnitDuration.milliseconds, minBytes: 2),
+    0x12: UAS(signed: false, scale: 1, unit: UnitDuration.seconds, minBytes: 2),
+    0x13: UAS(signed: false, scale: 1, unit: UnitElectricResistance.microohms, minBytes: 2),
+    0x14: UAS(signed: false, scale: 1, unit: UnitElectricResistance.ohms, minBytes: 2),
+    0x15: UAS(signed: false, scale: 1, unit: UnitElectricResistance.kiloohms, minBytes: 2),
+    0x16: UAS(signed: false, scale: 0.1, unit: UnitTemperature.celsius, offset: -40.0, minBytes: 2),
+    0x17: UAS(signed: false, scale: 0.01, unit: UnitPressure.kilopascals, minBytes: 2),
+    0x18: UAS(signed: false, scale: 0.0117, unit: UnitPressure.kilopascals, minBytes: 2),
+    0x19: UAS(signed: false, scale: 0.079, unit: UnitPressure.kilopascals, minBytes: 2),
+    0x1A: UAS(signed: false, scale: 1, unit: UnitPressure.kilopascals, minBytes: 2),
+    0x1B: UAS(signed: false, scale: 10, unit: UnitPressure.kilopascals, minBytes: 2),
+    0x1C: UAS(signed: false, scale: 0.01, unit: UnitAngle.degrees, minBytes: 2),
+    0x1D: UAS(signed: false, scale: 0.5, unit: UnitAngle.degrees, minBytes: 2),
+    // unit ratio — 4-byte lambda/voltage combos
+    0x1E: UAS(signed: false, scale: 0.0000305, unit: Unit.ratio, minBytes: 2),
+    0x1F: UAS(signed: false, scale: 0.05, unit: Unit.ratio, minBytes: 2),
+    0x20: UAS(signed: false, scale: 0.00390625, unit: Unit.ratio, minBytes: 2),
+    0x21: UAS(signed: false, scale: 1, unit: UnitFrequency.millihertz, minBytes: 2),
+    0x22: UAS(signed: false, scale: 1, unit: UnitFrequency.hertz, minBytes: 2),
+    0x23: UAS(signed: false, scale: 1, unit: UnitFrequency.kilohertz, minBytes: 2),
+    0x24: UAS(signed: false, scale: 1, unit: Unit.count, minBytes: 2),
+    0x25: UAS(signed: false, scale: 1, unit: UnitLength.kilometers, minBytes: 2),
 
-    0x27: UAS(signed: false, scale: 0.01, unit: Unit.gramsPerSecond),
+    0x27: UAS(signed: false, scale: 0.01, unit: Unit.gramsPerSecond, minBytes: 2),
+    0x34: UAS(signed: false, scale: 1, unit: UnitDuration.minutes, minBytes: 2),
 
     // Signed
     0x81: UAS(signed: true, scale: 1.0, unit: Unit.count),
@@ -213,11 +259,20 @@ private var uasIDS: [UInt8: UAS] = {
     0xFE: UAS(signed: true, scale: 0.25, unit: Unit.Pascal)
 ]}()
 
-public enum DecodeError: Error {
+public enum DecodeError: Error, LocalizedError {
     case invalidData
     case noData
     case decodingFailed(reason: String)
     case unsupportedDecoder
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidData: return "Invalid data received for decoding."
+        case .noData: return "No data received."
+        case .decodingFailed(let reason): return "Decoding failed: \(reason)"
+        case .unsupportedDecoder: return "No decoder available for this command."
+        }
+    }
 }
 
 protocol Decoder {
@@ -323,6 +378,8 @@ public enum Decoders: Equatable, Encodable {
                 return MonitorDecoder()
             case .encoded_string:
                 return StringDecoder()
+            case .cvn:
+                return CVNDecoder()
             case .uas(let id):
                 let decoder = UASDecoder(id: id)
                 return decoder
@@ -365,10 +422,11 @@ struct MonitorDecoder: Decoder {
     }
 
     func parse_monitor_test(_ data: Data) -> MonitorTest? {
+        let bytes = Array(data)
         var test = MonitorTest()
 
-        let tid = data[1]
-        let cid = data[2]
+        let tid = bytes[1]
+        let cid = bytes[2]
 
         if let testInfo = TestIds[tid] {
             test.name = testInfo.0
@@ -443,27 +501,24 @@ struct AbsEvapPressureDecoder: Decoder {
 
 struct FuelTypeDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 0 else {
+        let bytes = Array(data)
+        guard let i = bytes.first else {
             return .failure(.invalidData)
         }
-        let i = data[0]
-        var value: String?
-        if i < FuelTypes.count {
-            value = FuelTypes[Int(i)]
-        }
-        guard let value = value else {
+        guard let value = FuelTypes[safe: Int(i)] else {
             return .failure(.invalidData)
         }
-        return .success(.stringResult((value)))
+        return .success(.stringResult(value))
     }
 }
 
 struct MaxMafDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 0 else {
+        let bytes = Array(data)
+        guard let first = bytes.first else {
             return .failure(.invalidData)
         }
-        let value = data[0] * 10
+        let value = first * 10
         return .success((.measurementResult(MeasurementResult(value: Double(value), unit: Unit.gramsPerSecond))))
     }
 }
@@ -478,14 +533,18 @@ struct AbsoluteLoadDecoder: Decoder {
 
 struct EvapPressureDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 1 else {
+        let bytes = Array(data)
+        guard bytes.count > 1 else {
             return .failure(.invalidData)
         }
-        
-        let a = twosComp(Int(data[0]), length: 8)
-        let b = twosComp(Int(data[1]), length: 8)
 
-        let value = ((Double(a) * 256.0) + Double(b)) / 4.0
+        // ((A*256)+B)/4 is ONE signed 16-bit value, so the sign fold belongs to the pair,
+        // not to each byte: B is the unsigned low half. Sign-folding B on its own (harmless
+        // while twosComp was a no-op, real now that it isn't) subtracted a full 256 counts
+        // from every reading whose low byte happened to be >= 0x80.
+        let raw = twosComp((Int(bytes[0]) << 8) | Int(bytes[1]), length: 16)
+
+        let value = Double(raw) / 4.0
         return .success((.measurementResult(MeasurementResult(value: value, unit: UnitPressure.kilopascals))))
     }
 }
@@ -552,11 +611,12 @@ struct O2SensorsAltDecoder: Decoder {
 
 struct OBDComplianceDecoder: Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
-        guard data.count > 1 else {
+        let bytes = Array(data)
+        guard bytes.count > 1 else {
             return .failure(.invalidData)
         }
-        
-        let i = data[1]
+
+        let i = bytes[1]
 
         if i < OBD_COMPLIANCE.count {
             return .success(.stringResult((OBD_COMPLIANCE[Int(i)])))
@@ -694,12 +754,26 @@ struct StringDecoder: Decoder {
     }
 }
 
+// Formats the 4-byte Calibration Verification Number as an 8-char uppercase hex string.
+// After sendCommand dropFirst, data layout: [PID(06), count(01), b0, b1, b2, b3]
+struct CVNDecoder: Decoder {
+    func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
+        guard data.count >= 6 else { return .failure(.invalidData) }
+        let cvnBytes = data.dropFirst(2).prefix(4)
+        let hex = cvnBytes.map { String(format: "%02X", $0) }.joined()
+        return .success(.stringResult(hex))
+    }
+}
+
 struct UASDecoder: Decoder {
     let id: UInt8
 
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError> {
         guard let uas = uasIDS[id] else {
             return .failure(.invalidData)
+        }
+        guard data.count >= uas.minBytes else {
+            return .failure(.noData)
         }
         return .success((.measurementResult(uas.decode(bytes: data, unit))))
     }
@@ -723,17 +797,29 @@ struct StatusDecoder: Decoder {
 
         // convert to binaryarray
         let bits = BitArray(data: data)
+        guard bits.binaryArray.count >= 16 else {
+            return .failure(.invalidData)
+        }
 
         var output = Status()
         output.MIL = bits.binaryArray[0] == 1
         output.dtcCount = bits.value(at: 1 ..< 8)
-        output.ignitionType = IGNITIONTYPE[bits.binaryArray[12]]
+        let ignitionBit = bits.binaryArray[12]
+        output.ignitionType = ignitionBit < IGNITIONTYPE.count ? IGNITIONTYPE[ignitionBit] : "Unknown"
 
         // load the 3 base tests that are always present
 
         for (index, name) in baseTests.reversed().enumerated() {
             processBaseTest(name, index, bits, &output)
         }
+
+        // Bytes C/D — only when the response actually carries all 4 bytes (it always
+        // should per spec, but a non-compliant adapter/ECU truncating the reply must not
+        // crash on an out-of-bounds bit index).
+        if bits.binaryArray.count >= 32 {
+            decodeNonContinuousTests(bits, &output)
+        }
+
         return .success(.statusResult(output))
     }
 
@@ -749,6 +835,23 @@ struct StatusDecoder: Decoder {
         default:
             break
         }
+    }
+
+    /// Byte C (bits 16...23, C7 first) = availability, 1 = available. Byte D (bits
+    /// 24...31, D7 first) = completion, 0 = complete — same polarity as the 3 base tests
+    /// above, just at a different bit offset.
+    private func decodeNonContinuousTests(_ bits: BitArray, _ output: inout Status) {
+        func test(availBit: Int, completeBit: Int) -> StatusTest {
+            StatusTest("", bits.binaryArray[availBit] != 0, bits.binaryArray[completeBit] == 0)
+        }
+        output.catalystMonitoring = test(availBit: 23, completeBit: 31)           // C0 / D0
+        output.heatedCatalystMonitoring = test(availBit: 22, completeBit: 30)     // C1 / D1
+        output.evapSystemMonitoring = test(availBit: 21, completeBit: 29)         // C2 / D2
+        output.secondaryAirSystemMonitoring = test(availBit: 20, completeBit: 28) // C3 / D3
+        output.auxInputMonitoring = test(availBit: 19, completeBit: 27)           // C4 / D4
+        output.oxygenSensorMonitoring = test(availBit: 18, completeBit: 26)       // C5 / D5
+        output.oxygenSensorHeaterMonitoring = test(availBit: 17, completeBit: 25) // C6 / D6
+        output.egrOrVvtMonitoring = test(availBit: 16, completeBit: 24)           // C7 / D7
     }
 }
 

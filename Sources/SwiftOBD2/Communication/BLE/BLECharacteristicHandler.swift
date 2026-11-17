@@ -1,66 +1,56 @@
-import Foundation
-import OSLog
 import CoreBluetooth
+import Foundation
 
+/// Finds the characteristics an adapter uses as its serial port and writes commands to them.
 class BLECharacteristicHandler {
+    private let lock = NSLock()
     private var ecuReadCharacteristic: CBCharacteristic?
-       private var ecuWriteCharacteristic: CBCharacteristic?
-       private let messageProcessor: BLEMessageProcessor
-       private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app", category: "BLECharacteristicHandler")
+    private var ecuWriteCharacteristic: CBCharacteristic?
+    private let messageProcessor: BLEMessageProcessor
 
-       var isReady: Bool {
-           ecuReadCharacteristic != nil && ecuWriteCharacteristic != nil
-       }
+    var isReady: Bool {
+        lock.sync { ecuReadCharacteristic != nil && ecuWriteCharacteristic != nil }
+    }
 
-       init(messageProcessor: BLEMessageProcessor) {
-           self.messageProcessor = messageProcessor
-       }
-
+    init(messageProcessor: BLEMessageProcessor) {
+        self.messageProcessor = messageProcessor
+    }
 
     func setupCharacteristics(_ characteristics: [CBCharacteristic], on peripheral: CBPeripheral) {
-           for characteristic in characteristics {
-               // Set up notifications for characteristics that support it
-               if characteristic.properties.contains(.notify) {
-                   peripheral.setNotifyValue(true, for: characteristic)
-               }
+        for characteristic in characteristics {
+            let properties = characteristic.properties
+            let canNotify = properties.contains(.notify) || properties.contains(.indicate)
+            // Cheap adapters often only offer "write without response".
+            let canWrite = properties.contains(.write) || properties.contains(.writeWithoutResponse)
 
-               // Assign characteristics based on UUID and properties
-               switch characteristic.uuid.uuidString.uppercased() {
-               case "FFE1": // for service FFE0 (read and write)
-                   if characteristic.properties.contains(.write) {
-                       ecuWriteCharacteristic = characteristic
-                   }
-                   if characteristic.properties.contains(.read) || characteristic.properties.contains(.notify) {
-                       ecuReadCharacteristic = characteristic
-                   }
+            // Set up notifications for characteristics that support it
+            if canNotify {
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
 
-               case "FFF1": // for service FFF0 (read only)
-                   if characteristic.properties.contains(.read) || characteristic.properties.contains(.notify) {
-                       ecuReadCharacteristic = characteristic
-                   }
+            lock.sync {
+                // Assign characteristics based on UUID and properties
+                switch characteristic.uuid.uuidString.uppercased() {
+                case "FFE1": // for service FFE0 (read and write)
+                    if canWrite { ecuWriteCharacteristic = characteristic }
+                    if canNotify { ecuReadCharacteristic = characteristic }
 
-               case "FFF2": // for service FFF0 (write only)
-                   if characteristic.properties.contains(.write) {
-                       ecuWriteCharacteristic = characteristic
-                   }
+                case "FFF1", "2AF0": // for services FFF0 and 18F0 (read)
+                    if canNotify { ecuReadCharacteristic = characteristic }
 
-               case "2AF0": // for service 18F0 (read)
-                   if characteristic.properties.contains(.read) || characteristic.properties.contains(.notify) {
-                       ecuReadCharacteristic = characteristic
-                   }
+                case "FFF2", "2AF1": // for services FFF0 and 18F0 (write)
+                    if canWrite { ecuWriteCharacteristic = characteristic }
 
-               case "2AF1": // for service 18F0 (write)
-                   if characteristic.properties.contains(.write) {
-                       ecuWriteCharacteristic = characteristic
-                   }
+                default:
+                    // Unknown adapter: use the first characteristics that can play each role.
+                    if ecuReadCharacteristic == nil, canNotify { ecuReadCharacteristic = characteristic }
+                    if ecuWriteCharacteristic == nil, canWrite { ecuWriteCharacteristic = characteristic }
+                }
+            }
+        }
 
-               default:
-                   logger.debug("Unknown characteristic: \(characteristic.uuid.uuidString)")
-               }
-           }
-
-        logger.info("Characteristics setup - Read: \(self.ecuReadCharacteristic != nil), Write: \(self.ecuWriteCharacteristic != nil)")
-       }
+        obdInfo("Characteristics setup - ready: \(isReady)", category: .bluetooth)
+    }
 
     func discoverCharacteristics(for service: CBService, on peripheral: CBPeripheral) {
         switch service.uuid {
@@ -76,20 +66,28 @@ class BLECharacteristicHandler {
     }
 
     func writeCommand(_ command: String, to peripheral: CBPeripheral) throws {
-        guard let characteristic = ecuWriteCharacteristic,
-              let data = "\(command)\r".data(using: .ascii) else {
+        guard let characteristic = lock.sync({ ecuWriteCharacteristic }),
+              let data = "\(command)\r".data(using: .ascii)
+        else {
             throw BLEManagerError.missingPeripheralOrCharacteristic
         }
+        guard peripheral.state == .connected else {
+            throw CommunicationError.notConnected
+        }
 
-        peripheral.writeValue(data, for: characteristic, type: .withResponse)
-        logger.info("Sent command: \(command)")
+        let type: CBCharacteristicWriteType = characteristic.properties.contains(.write) ? .withResponse : .withoutResponse
+        // A write longer than the negotiated MTU is silently truncated: split it.
+        let chunkSize = max(20, peripheral.maximumWriteValueLength(for: type))
+        var offset = 0
+        while offset < data.count {
+            let end = min(offset + chunkSize, data.count)
+            peripheral.writeValue(data.subdata(in: offset ..< end), for: characteristic, type: type)
+            offset = end
+        }
     }
 
     func handleUpdatedValue(_ data: Data, from characteristic: CBCharacteristic) {
-        guard characteristic == ecuReadCharacteristic else {
-            if let responseString = String(data: data, encoding: .utf8) {
-                logger.info("Unknown characteristic: \(characteristic)\nResponse: \(responseString)")
-            }
+        guard characteristic == lock.sync({ ecuReadCharacteristic }) else {
             return
         }
 
@@ -97,7 +95,10 @@ class BLECharacteristicHandler {
     }
 
     func reset() {
-        ecuReadCharacteristic = nil
-        ecuWriteCharacteristic = nil
+        lock.sync {
+            ecuReadCharacteristic = nil
+            ecuWriteCharacteristic = nil
+        }
+        messageProcessor.reset()
     }
 }

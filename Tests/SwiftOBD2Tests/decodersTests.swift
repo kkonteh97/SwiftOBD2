@@ -172,8 +172,8 @@ final class decodersTests: XCTestCase {
     }
 
     func testInjectTiming() {
-        let tests = [Data([0x00, 0x00]): MeasurementResult(value: -210, unit: UnitPressure.degrees),
-                     Data([0xFF, 0xFF]): MeasurementResult(value: 301, unit: UnitPressure.degrees)]
+        let tests = [Data([0x00, 0x00]): MeasurementResult(value: -210, unit: UnitAngle.degrees),
+                     Data([0xFF, 0xFF]): MeasurementResult(value: 301, unit: UnitAngle.degrees)]
         for (data, expected) in tests {
             switch InjectTimingDecoder().decode(data: data, unit: .metric) {
             case let .success(result):
@@ -284,5 +284,143 @@ final class decodersTests: XCTestCase {
         default:
             XCTFail("Monitor decoding failed")
         }
+    }
+
+    // MARK: - Readiness
+
+    func testStatusMonitors() throws {
+        // MIL on, 3 codes, spark ignition; catalyst and EVAP monitors incomplete
+        let status = try XCTUnwrap(StatusDecoder().decode(data: Data([0x83, 0x07, 0xE5, 0x05]), unit: .metric).get().statusResult)
+
+        XCTAssertTrue(status.MIL)
+        XCTAssertEqual(status.dtcCount, 3)
+        XCTAssertEqual(status.ignitionType, "Spark")
+        XCTAssertTrue(status.misfireMonitoring.supported)
+        XCTAssertTrue(status.misfireMonitoring.ready)
+        XCTAssertEqual(status.monitors.count, 10)
+        XCTAssertEqual(status.incompleteMonitors.map(\.name), ["CATALYST_MONITORING", "EVAPORATIVE_SYSTEM_MONITORING"])
+        XCTAssertFalse(status.isReadyForInspection)
+        XCTAssertEqual(status.monitors.first { $0.name == "SECONDARY_AIR_SYSTEM_MONITORING" }?.supported, false)
+        XCTAssertEqual(status.monitors[3].title, "Catalyst Monitoring")
+    }
+
+    func testStatusCompressionIgnition() throws {
+        // Diesel: fuel system monitor incomplete, particulate filter supported and complete
+        let status = try XCTUnwrap(StatusDecoder().decode(data: Data([0x00, 0x2F, 0x40, 0x00]), unit: .metric).get().statusResult)
+
+        XCTAssertFalse(status.MIL)
+        XCTAssertEqual(status.ignitionType, "Compression")
+        XCTAssertFalse(status.fuelSystemMonitoring.ready)
+        XCTAssertEqual(status.monitors.filter(\.supported).map(\.name),
+                       ["MISFIRE_MONITORING", "FUEL_SYSTEM_MONITORING", "COMPONENT_MONITORING", "PM_FILTER_MONITORING"])
+        XCTAssertEqual(status.incompleteMonitors.map(\.name), ["FUEL_SYSTEM_MONITORING"])
+    }
+
+    func testStatusSurvivesOldArchives() throws {
+        // Vehicles saved by earlier versions do not have the `monitors` key.
+        let json = #"{"MIL":true,"dtcCount":2,"ignitionType":"Spark","misfireMonitoring":{"name":"MISFIRE_MONITORING","supported":true,"ready":true},"fuelSystemMonitoring":{"name":"","supported":false,"ready":false},"componentMonitoring":{"name":"","supported":false,"ready":false}}"#
+        let status = try JSONDecoder().decode(Status.self, from: Data(json.utf8))
+        XCTAssertTrue(status.MIL)
+        XCTAssertEqual(status.dtcCount, 2)
+        XCTAssertTrue(status.monitors.isEmpty)
+
+        let code = try JSONDecoder().decode(TroubleCode.self, from: Data(#"{"code":"P0104","description":"x"}"#.utf8))
+        XCTAssertEqual(code.kind, .stored)
+    }
+
+    func testShortDataNeverCrashes() {
+        let decoders: [Decoders] = [
+            .status, .temp, .percent, .percentCentered, .currentCentered, .airStatus, .singleDTC, .fuelStatus,
+            .fuelPressure, .pressure, .timingAdvance, .obdCompliance, .o2SensorsAlt, .o2Sensors, .auxInputStatus,
+            .sensorVoltage, .sensorVoltageBig, .evapPressure, .absoluteLoad, .maxMaf, .fuelType, .absEvapPressure,
+            .evapPressureAlt, .injectTiming, .dtc, .fuelRate, .monitor, .encoded_string, .count, .torquePercent,
+            .odometer, .uas(0x07), .uas(0xEE), .formula(expression: "A*256+B", unit: ""), .pid, .cvn, .none,
+        ]
+        for decoder in decoders {
+            for data in [Data(), Data([0xFF]), Data([0xFF, 0xFF, 0xFF])] {
+                // Slices keep the indices of their parent: a classic source of out-of-bounds accesses.
+                _ = decoder.getDecoder()?.decode(data: data, unit: .metric)
+                _ = decoder.getDecoder()?.decode(data: (Data([0x00, 0x00]) + data).dropFirst(2), unit: .imperial)
+            }
+        }
+    }
+
+    // MARK: - Scaling
+
+    func testSignedValues() throws {
+        // UAS 0x96: signed, 0.1 °C per bit
+        let cold = try XCTUnwrap(UASDecoder(id: 0x96).decode(data: Data([0xFF, 0x9C]), unit: .metric).get().measurementResult)
+        XCTAssertEqual(cold.value, -10, accuracy: 0.001)
+        XCTAssertEqual(cold.unit, UnitTemperature.celsius)
+
+        // PID 32: signed, a quarter of a pascal per bit
+        let vacuum = try XCTUnwrap(EvapPressureDecoder().decode(data: Data([0xFF, 0xFC]), unit: .metric).get().measurementResult)
+        XCTAssertEqual(vacuum.value, -1, accuracy: 0.001)
+        XCTAssertEqual(vacuum.unit, Unit.Pascal)
+
+        XCTAssertEqual(twosComp(0x7F, length: 8), 127)
+        XCTAssertEqual(twosComp(0x80, length: 8), -128)
+        XCTAssertEqual(twosComp(0xFFFF, length: 16), -1)
+    }
+
+    func testImperialConversionIsRepeatable() throws {
+        let decoder = UASDecoder(id: 0x09) // vehicle speed, km/h
+        for _ in 0 ..< 3 {
+            let imperial = try XCTUnwrap(decoder.decode(data: Data([100]), unit: .imperial).get().measurementResult)
+            XCTAssertEqual(imperial.value, 62.1371, accuracy: 0.001)
+            XCTAssertEqual(imperial.unit, UnitSpeed.milesPerHour)
+
+            let metric = try XCTUnwrap(decoder.decode(data: Data([100]), unit: .metric).get().measurementResult)
+            XCTAssertEqual(metric.value, 100)
+            XCTAssertEqual(metric.unit, UnitSpeed.kilometersPerHour)
+        }
+
+        let temperature = try XCTUnwrap(TemperatureDecoder().decode(data: Data([140]), unit: .imperial).get().measurementResult)
+        XCTAssertEqual(temperature.value, 212, accuracy: 0.001)
+        XCTAssertEqual(temperature.unit, UnitTemperature.fahrenheit)
+    }
+
+    func testMiscellaneousPIDs() throws {
+        func value(_ command: OBDCommand.Mode1, _ bytes: [UInt8]) throws -> Double {
+            try XCTUnwrap(command.properties.decode(data: Data(bytes)).get().measurementResult).value
+        }
+        func string(_ command: OBDCommand.Mode1, _ bytes: [UInt8]) throws -> String {
+            try XCTUnwrap(command.properties.decode(data: Data(bytes)).get().stringResult)
+        }
+
+        XCTAssertEqual(try value(.rpm, [0x1A, 0xF8]), 1726)
+        XCTAssertEqual(try value(.maxMAF, [0xFF, 0, 0, 0]), 2550)
+        XCTAssertEqual(try value(.absoluteLoad, [0x00, 0xFF]), 100, accuracy: 0.001)
+        XCTAssertEqual(try value(.fuelRate, [0x00, 0xC8]), 10, accuracy: 0.001)
+        XCTAssertEqual(try value(.timeSinceDTCCleared, [0x08, 0x34]), 2100)
+        XCTAssertEqual(try value(.demandTorque, [0x7D + 40]), 40)
+        XCTAssertEqual(try value(.referenceTorque, [0x01, 0x90]), 400)
+        XCTAssertEqual(try value(.odometer, [0x00, 0x01, 0x86, 0xA0]), 10000)
+        XCTAssertEqual(try value(.commandedEquivRatio, [0x80, 0x00]), 1, accuracy: 0.001)
+        XCTAssertEqual(try value(.evapVaporPressureAbs, [0x4E, 0x20]), 100, accuracy: 0.001)
+
+        XCTAssertEqual(try string(.fuelType, [0x04]), "Diesel")
+        XCTAssertEqual(try string(.obdcompliance, [0x06]), "EOBD (Europe)")
+        XCTAssertEqual(try string(.fuelStatus, [0x02, 0x00]), "Status: Closed loop, using oxygen sensor feedback to determine fuel mix")
+        XCTAssertEqual(try string(.airStatus, [0x04]), "From the outside atmosphere or off")
+        XCTAssertEqual(try string(.O2Sensor, [0x03]), "[1, 1, 0, 0], [0, 0, 0, 0]")
+        XCTAssertEqual(try string(.pidsA, [0xBE, 0x3F, 0xA8, 0x13]), "BE3FA813")
+    }
+
+    func testEveryStandardPIDHasALength() {
+        for command in OBDCommand.Mode1.allCases {
+            XCTAssertGreaterThan(command.properties.bytes, 0, command.properties.command)
+        }
+        XCTAssertEqual(OBDCommand.from(command: "010c"), .mode1(.rpm))
+        XCTAssertEqual(OBDCommand.mode1(.rpm).service, 0x01)
+        XCTAssertNil(OBDCommand.general(.ATZ).service)
+    }
+
+    func testTroubleCodeClassification() {
+        XCTAssertEqual(TroubleCode(code: "P0301").description, "Cylinder 1 Misfire Detected")
+        XCTAssertFalse(TroubleCode(code: "P0301").isManufacturerSpecific)
+        XCTAssertTrue(TroubleCode(code: "P1234").isManufacturerSpecific)
+        XCTAssertTrue(TroubleCode(code: "U2100").isManufacturerSpecific)
+        XCTAssertFalse(TroubleCode(code: "P2096").isManufacturerSpecific)
     }
 }

@@ -18,13 +18,20 @@ import Combine
 import CoreBluetooth
 import Foundation
 
+/// The state of the connection to the adapter and the vehicle.
 public enum ConnectionState: Sendable {
+    /// Not connected.
     case disconnected
+    /// Connecting to the adapter.
     case connecting
+    /// Connected to the adapter, not to the vehicle yet.
     case connectedToAdapter
+    /// Connected to the vehicle: commands can be sent.
     case connectedToVehicle
+    /// The connection failed.
     case error
 
+    /// A description of the state.
     public var description: String {
         switch self {
         case .disconnected: return "Disconnected"
@@ -35,6 +42,7 @@ public enum ConnectionState: Sendable {
         }
     }
 
+    /// `true` when connected to the adapter or to the vehicle.
     public var isConnected: Bool {
         switch self {
         case .connectedToAdapter, .connectedToVehicle:
@@ -57,9 +65,6 @@ enum BLEConstants {
 }
 
 class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
-    private let peripheralSubject = PassthroughSubject<CBPeripheral, Never>()
-    // Replaced with centralized logging - see connectionStateDidChange for usage
-
     static let RestoreIdentifierKey: String = "OBD2Adapter"
 
     // MARK: Properties
@@ -67,9 +72,6 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
     @Published var connectionState: ConnectionState = .disconnected
 
     var connectionStatePublisher: Published<ConnectionState>.Publisher { $connectionState }
-
-
-    public weak var obdDelegate: OBDServiceDelegate?
 
     // Focused components
     private var centralManager: CBCentralManager!
@@ -106,6 +108,7 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
         messageProcessor = BLEMessageProcessor()
         characteristicHandler = BLECharacteristicHandler(messageProcessor: messageProcessor)
         peripheralManager = BLEPeripheralManager(characteristicHandler: characteristicHandler)
+        peripheralManager.delegate = self
         peripheralScanner = BLEPeripheralScanner()
     }
 
@@ -157,7 +160,6 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
         default:
             obdError("Bluetooth in unexpected state: \(central.state.rawValue)", category: .bluetooth)
             connectionState = .error
-            obdDelegate?.connectionStateChanged(state: .error)
         }
     }
 
@@ -180,11 +182,7 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
         let oldState = connectionState
         connectionState = .connecting
         OBDLogger.shared.logConnectionChange(from: oldState, to: connectionState)
-        
-        DispatchQueue.main.async {
-            self.obdDelegate?.connectionStateChanged(state: .connecting)
-        }
-        
+
         centralManager.connect(peripheral, options: [CBConnectPeripheralOptionNotifyOnDisconnectionKey: true])
         if centralManager.isScanning {
             centralManager.stopScan()
@@ -205,10 +203,9 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
         let oldState = connectionState
         connectionState = .error
         OBDLogger.shared.logConnectionChange(from: oldState, to: connectionState)
-        
-        DispatchQueue.main.async {
-            self.obdDelegate?.connectionStateChanged(state: .error)
-        }
+
+        // Release whoever is waiting for this connection.
+        peripheralManager.finishSetup(.failure(error ?? BLEManagerError.peripheralNotConnected))
     }
 
     func didDisconnect(_: CBCentralManager, peripheral: CBPeripheral, error: Error?) {
@@ -251,21 +248,25 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
             targetPeripheral = try await peripheralScanner.waitForFirstPeripheral(timeout: timeout)
         }
 
-        connect(to: targetPeripheral)
-
-        try await peripheralManager.waitForCharacteristicsSetup(timeout: timeout)
+        do {
+            try await peripheralManager.waitForCharacteristicsSetup(timeout: timeout) { [weak self] in
+                self?.connect(to: targetPeripheral)
+            }
+        } catch {
+            // Do not leave a pending connection behind: CoreBluetooth never times out by itself.
+            centralManager.cancelPeripheralConnection(targetPeripheral)
+            if connectionState == .connecting {
+                connectionState = .disconnected
+            }
+            throw error
+        }
     }
 
     func peripheralManager(_ manager: BLEPeripheralManager, didSetupCharacteristics peripheral: CBPeripheral) {
         let oldState = connectionState
         connectionState = .connectedToAdapter
         OBDLogger.shared.logConnectionChange(from: oldState, to: connectionState)
-        
-        // Dispatch delegate call to main queue since it might update UI
-        DispatchQueue.main.async {
-            self.obdDelegate?.connectionStateChanged(state: .connectedToAdapter)
-        }
-        
+
         obdInfo("Characteristics setup complete, connected to adapter", category: .bluetooth)
     }
 
@@ -301,35 +302,26 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
     }
 
 
-    /// Sends a message to the connected peripheral and returns the response.
-    /// - Parameter message: The message to send.
-    /// - Returns: The response from the peripheral.
+    /// Sends a command to the connected peripheral and returns the lines of its answer.
+    /// - Parameters:
+    ///   - command: The command to send, without the trailing carriage return.
+    ///   - timeout: How long to wait for the adapter prompt.
     /// - Throws:
-    ///     `BLEManagerError.sendingMessagesInProgress` if a message is already being sent.
-    ///     `BLEManagerError.missingPeripheralOrCharacteristic` if the peripheral or ecu characteristic is missing.
-    ///     `BLEManagerError.incorrectDataConversion` if the data cannot be converted to ASCII.
-    ///     `BLEManagerError.peripheralNotConnected` if the peripheral is not connected.
-    ///     `BLEManagerError.timeout` if the operation times out.
-    ///     `BLEManagerError.unknownError` if an unknown error occurs.
-    func sendCommand(_ command: String, retries _: Int = 3) async throws -> [String] {
-        guard let peripheral = peripheralManager.connectedPeripheral else {
-            obdError("Missing peripheral or ECU characteristic", category: .bluetooth)
-            throw BLEManagerError.missingPeripheralOrCharacteristic
+    ///     `CommunicationError.notConnected` if no peripheral is connected.
+    ///     `BLEManagerError.missingPeripheralOrCharacteristic` if the write characteristic is missing.
+    ///     `CommunicationError.timeout` if the adapter does not answer in time.
+    ///     `CommunicationError.busy` if a command is already being sent.
+    ///     `CommunicationError.disconnected` if the peripheral disconnects meanwhile.
+    func sendCommand(_ command: String, timeout: TimeInterval = BLEConstants.defaultTimeout) async throws -> [String] {
+        guard connectionState.isConnected, let peripheral = peripheralManager.connectedPeripheral else {
+            throw CommunicationError.notConnected
         }
 
-        obdDebug("Sending command: \(command)", category: .communication)
-        
-        do {
-            try characteristicHandler.writeCommand(command, to: peripheral)
-            let response = try await messageProcessor.waitForResponse(timeout: BLEConstants.defaultTimeout)
-            obdDebug("Command response: \(response.joined(separator: " | "))", category: .communication)
-            return response
-        } catch {
-            obdError("Command failed: \(command) - \(error.localizedDescription)", category: .communication)
-            throw error
+        let handler: BLECharacteristicHandler = characteristicHandler
+        return try await messageProcessor.request(timeout: timeout) {
+            try handler.writeCommand(command, to: peripheral)
         }
     }
-
 
     func scanForPeripherals() async throws {
         startScanning(nil)
@@ -344,11 +336,8 @@ class BLEManager: NSObject, CommProtocol, BLEPeripheralManagerDelegate {
         connectionState = .disconnected
         if oldState != connectionState {
             OBDLogger.shared.logConnectionChange(from: oldState, to: connectionState)
-            
-            DispatchQueue.main.async {
-                self.obdDelegate?.connectionStateChanged(state: .disconnected)
-            }
         }
+        peripheralManager.finishSetup(.failure(BLEManagerError.peripheralNotConnected))
     }
 }
 

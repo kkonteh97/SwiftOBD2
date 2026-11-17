@@ -2,16 +2,23 @@ import Combine
 import CoreBluetooth
 import Foundation
 
+/// How the library reaches the ELM327 adapter.
 public enum ConnectionType: String, CaseIterable {
+    /// A Bluetooth Low Energy adapter (scanned and connected with CoreBluetooth).
     case bluetooth = "Bluetooth"
+    /// A Wi-Fi adapter reached over TCP (see ``OBDConfiguration/wifiHost`` and ``OBDConfiguration/wifiPort``).
     case wifi = "Wi-Fi"
+    /// A simulated adapter and vehicle, for previews, tests and demos.
     case demo = "Demo"
 }
 
+/// Receives the connection state changes of the underlying transport.
 public protocol OBDServiceDelegate: AnyObject {
+    /// Called whenever the connection state changes.
     func connectionStateChanged(state: ConnectionState)
 }
 
+/// Persists the last selected ``ConnectionType`` in the user defaults.
 public class ConfigurationService {
     static var shared = ConfigurationService()
     var connectionType: ConnectionType {
@@ -36,9 +43,13 @@ public class ConfigurationService {
 /// Reading data, diagnostics (trouble codes, freeze frames, monitors) and manufacturer specific
 /// requests are grouped in extensions of this class.
 public class OBDService: ObservableObject, OBDServiceDelegate {
+    /// The current state of the connection to the adapter and the vehicle.
     @Published public private(set) var connectionState: ConnectionState = .disconnected
+    /// `true` while scanning for Bluetooth adapters.
     @Published public private(set) var isScanning: Bool = false
+    /// The Bluetooth adapter in use, if any.
     @Published public private(set) var connectedPeripheral: CBPeripheral?
+    /// The transport used to reach the adapter. Changing it closes the current connection.
     @Published public var connectionType: ConnectionType {
         didSet {
             switchConnectionType(connectionType)
@@ -545,12 +556,19 @@ public class OBDService: ObservableObject, OBDServiceDelegate {
     }
 }
 
+/// Errors thrown by ``OBDService``.
 public enum OBDServiceError: Error, LocalizedError {
+    /// No adapter could be found or reached.
     case noAdapterFound
+    /// The adapter is not connected to a vehicle yet: call ``OBDService/startConnection(preferedProtocol:timeout:)`` first.
     case notConnectedToVehicle
+    /// Connecting to the adapter or to the vehicle failed.
     case adapterConnectionFailed(underlyingError: Error)
+    /// Reading the trouble codes failed.
     case scanFailed(underlyingError: Error)
+    /// Clearing the trouble codes failed.
     case clearFailed(underlyingError: Error)
+    /// A command failed; `error` gives the reason.
     case commandFailed(command: String, error: Error)
     /// The vehicle, or the protocol it uses, does not offer this feature.
     case notSupported(String)
@@ -575,10 +593,14 @@ public enum OBDServiceError: Error, LocalizedError {
     }
 }
 
+/// A decoded value and its unit.
 public struct MeasurementResult: Equatable {
+    /// The numeric value, expressed in ``unit``.
     public var value: Double
+    /// The unit of ``value`` (`km/h`, `°C`, `kPa`…).
     public let unit: Unit
 
+    /// Creates a measurement.
     public init(value: Double, unit: Unit) {
         self.value = value
         self.unit = unit
@@ -586,6 +608,7 @@ public struct MeasurementResult: Equatable {
 }
 
 public extension MeasurementResult {
+    /// A sample measurement, for SwiftUI previews.
     static func mock(_ value: Double = 125, _ suffix: String = "km/h") -> MeasurementResult {
         .init(value: value, unit: .init(symbol: suffix))
     }
@@ -598,6 +621,9 @@ extension Array {
     }
 }
 
+/// Decodes a VIN with the NHTSA vPIC web service (make, model, model year…).
+///
+/// - Note: This sends the VIN to `vpic.nhtsa.dot.gov`.
 public func getVINInfo(vin: String) async throws -> VINResults {
     let endpoint = "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/\(vin)?format=json"
 
@@ -616,10 +642,12 @@ public func getVINInfo(vin: String) async throws -> VINResults {
     return decoded
 }
 
+/// The answer of the NHTSA vPIC web service.
 public struct VINResults: Codable {
     public let Results: [VINInfo]
 }
 
+/// The vehicle description decoded from a VIN by the NHTSA vPIC web service.
 public struct VINInfo: Codable, Hashable {
     public let Make: String
     public let Model: String

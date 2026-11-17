@@ -8,42 +8,54 @@
 import Foundation
 
 public extension DecodeResult {
+    /// The text, for commands returning text (VIN, calibration ID…).
     var stringResult: String? {
         if case let .stringResult(res) = self { return res as String }
         return nil
     }
 
+    /// The readiness status, for PID 01 and 41.
     var statusResult: Status? {
         if case let .statusResult(res) = self { return res as Status }
         return nil
     }
 
+    /// The measurement, for commands returning a numeric value.
     var measurementResult: MeasurementResult? {
         if case let .measurementResult(res) = self { return res as MeasurementResult }
         return nil
     }
 
+    /// The trouble codes, for trouble code requests.
     var troubleCode: [TroubleCode]? {
         if case let .troubleCode(res) = self { return res as [TroubleCode] }
         return nil
     }
 
+    /// The test results, for service 06 monitors.
     var measurementMonitor: Monitor? {
         if case let .measurementMonitor(res) = self { return res as Monitor }
         return nil
     }
 }
 
+/// Describes a command: its request, a human readable description and how to decode the answer.
 public struct CommandProperties: Encodable {
+    /// The request sent to the adapter, as hexadecimal text (`010C`) or an AT command.
     public let command: String
+    /// A human readable description.
     public let description: String
     /// Number of data bytes in the answer, `0` when it varies.
     let bytes: Int
     let decoder: Decoders
+    /// `true` for values worth displaying as live data.
     public let live: Bool
+    /// The highest expected value, for gauges.
     public let maxValue: Double
+    /// The lowest expected value, for gauges.
     public let minValue: Double
 
+    /// Creates the description of a command.
     public init(_ command: String,
                 _ description: String,
                 _ bytes: Int,
@@ -69,18 +81,31 @@ public struct CommandProperties: Encodable {
     }
 }
 
+/// A command that can be sent to the adapter or to the vehicle.
+///
+/// Standard commands are grouped by diagnostic service (``Mode1`` for live data, ``Mode9`` for
+/// vehicle information…); ``custom(_:)`` wraps a ``CustomCommand`` for manufacturer specific data.
+/// Use ``properties`` to read the request, a description and the expected range of a command.
 public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
+    /// Adapter (AT) commands.
     case general(General)
+    /// Service 01: current powertrain data.
     case mode1(Mode1)
+    /// Service 03: stored trouble codes.
     case mode3(Mode3)
+    /// Service 06: on-board monitoring test results.
     case mode6(Mode6)
+    /// Service 09: vehicle information (VIN, calibration IDs…).
     case mode9(Mode9)
+    /// Protocol selection commands (`ATSP`).
     case protocols(Protocols)
     /// A user defined command (manufacturer specific PID, UDS data identifier…).
     case custom(CustomCommand)
 
+    /// The command itself.
     public var id: Self { return self }
 
+    /// The request, description, decoder and range of the command.
     public var properties: CommandProperties {
         switch self {
         case let .general(command):
@@ -122,6 +147,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         properties.decoder == .pid
     }
 
+    /// Adapter (AT) commands.
     public enum General: CaseIterable, Codable, Comparable {
         case ATD
         case ATZ
@@ -135,6 +161,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         case ATDPN
     }
 
+    /// Commands selecting a protocol on the adapter (`ATSP`).
     public enum Protocols: CaseIterable, Codable, Comparable {
         case ATSP0
         case ATSP6
@@ -147,6 +174,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         }
     }
 
+    /// Service 01 parameters (PIDs): live data such as speed, RPM or temperatures.
     public enum Mode1: CaseIterable, Codable, Comparable {
         case pidsA
         case status
@@ -254,6 +282,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         case pidsG
     }
 
+    /// Service 03: stored trouble codes.
     public enum Mode3: CaseIterable, Codable, Comparable {
         case GET_DTC
         var properties: CommandProperties {
@@ -263,6 +292,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         }
     }
 
+    /// Service 04: clear trouble codes and freeze frame data.
     public enum Mode4: CaseIterable, Codable, Comparable {
         case CLEAR_DTC
         var properties: CommandProperties {
@@ -272,6 +302,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         }
     }
 
+    /// Service 06 monitors (MIDs): on-board test results.
     public enum Mode6: CaseIterable, Codable, Comparable {
         case MIDS_A
         case MONITOR_O2_B1S1
@@ -363,6 +394,7 @@ public enum OBDCommand: Codable, Hashable, Comparable, Identifiable {
         case MONITOR_PM_FILTER_B2
     }
 
+    /// Service 09: vehicle information.
     public enum Mode9: CaseIterable, Codable, Comparable {
         case PIDS_9A
         case VIN_MESSAGE_COUNT

@@ -55,6 +55,7 @@ extension Data {
     }
 }
 
+/// The protocols an ELM327 adapter can use to talk to the vehicle, by `ATSP` number.
 public enum PROTOCOL: String, Codable, CaseIterable {
     case
         protocol1 = "1",

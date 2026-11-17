@@ -26,6 +26,7 @@ public enum TroubleCodeKind: String, Codable, CaseIterable {
     }
 }
 
+/// A diagnostic trouble code (DTC) such as `P0301`.
 public struct TroubleCode: Codable, Hashable, Comparable {
     public static func < (lhs: TroubleCode, rhs: TroubleCode) -> Bool {
         lhs.code < rhs.code
@@ -33,13 +34,16 @@ public struct TroubleCode: Codable, Hashable, Comparable {
 
     /// The five character code, e.g. `P0301`.
     public let code: String
+    /// A description of the code, when it is a known generic code.
     public var description: String
+    /// Whether the code is stored, pending or permanent.
     public var kind: TroubleCodeKind
     /// Failure type byte, only reported by manufacturer (UDS) diagnostics.
     public var failureType: UInt8?
     /// Raw status byte, only reported by manufacturer (UDS) diagnostics.
     public var statusByte: UInt8?
 
+    /// Creates a trouble code; the description is looked up when omitted.
     public init(code: String, description: String? = nil, kind: TroubleCodeKind = .stored, failureType: UInt8? = nil, statusByte: UInt8? = nil) {
         self.code = code
         self.description = description ?? TroubleCode.description(for: code)

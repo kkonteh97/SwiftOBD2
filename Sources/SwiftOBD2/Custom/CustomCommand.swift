@@ -27,6 +27,7 @@ public struct ECUTarget: Codable, Hashable {
     /// AT commands undoing ``setupCommands``, run before the adapter addresses something else.
     public var teardownCommands: [String]
 
+    /// Creates a target from a request header and, optionally, the address of the answers.
     public init(header: String, receiveAddress: String? = nil, setupCommands: [String] = [], teardownCommands: [String] = []) {
         self.header = header.compactUppercased
         self.receiveAddress = receiveAddress?.compactUppercased
@@ -71,17 +72,22 @@ public struct ECUTarget: Codable, Hashable {
 /// The `formula` is evaluated on the bytes that follow the echoed request in the answer (see
 /// ``Formula``), which is the convention of the PID lists shared between scan tools.
 public struct CustomCommand: Codable, Hashable, Comparable, Identifiable {
+    /// A unique name, used as identifier and as column title in logs.
     public var name: String
     /// The request bytes in hexadecimal: service, then identifier (`0142`, `221154`, `2101`…).
     public var request: String
+    /// The formula turning the data bytes into a value (`(A*256+B)/4`). See ``Formula``.
     public var formula: String
     /// The unit symbol of the result, purely informative.
     public var unit: String
     /// The ECU to query, or `nil` to broadcast with the standard OBD-II header.
     public var target: ECUTarget?
+    /// The lowest expected value, for gauges.
     public var minValue: Double
+    /// The highest expected value, for gauges.
     public var maxValue: Double
 
+    /// The name of the command.
     public var id: String {
         "\(target?.header ?? "")/\(target?.receiveAddress ?? "")/\(request)"
     }

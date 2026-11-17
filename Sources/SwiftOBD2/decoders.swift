@@ -10,10 +10,14 @@
 
 import Foundation
 
+/// The unit system used to decode measurements.
 public enum MeasurementUnit: String, Codable {
+    /// Metric units (km/h, °C, kPa…).
     case metric = "Metric"
+    /// Imperial units (mph, °F, psi…).
     case imperial = "Imperial"
 
+    /// Both unit systems.
     public static var allCases: [MeasurementUnit] {
         [.metric, .imperial]
     }
@@ -31,13 +35,17 @@ public struct Status: Codable, Hashable {
     /// `"Spark"` (petrol) or `"Compression"` (diesel).
     public var ignitionType: String = ""
 
+    /// The misfire monitor.
     public var misfireMonitoring = StatusTest()
+    /// The fuel system monitor.
     public var fuelSystemMonitoring = StatusTest()
+    /// The comprehensive components monitor.
     public var componentMonitoring = StatusTest()
 
     /// Every monitor defined for this type of engine, continuous ones first.
     public var monitors: [StatusTest] = []
 
+    /// An empty status.
     public init() {}
 
     /// The monitors the vehicle supports but that have not completed yet.
@@ -297,10 +305,15 @@ let uasIDS: [UInt8: UAS] = [
 
 // MARK: - Decoding API
 
+/// Errors thrown while decoding a response.
 public enum DecodeError: Error, LocalizedError {
+    /// The response does not have the expected format.
     case invalidData
+    /// The vehicle returned no data.
     case noData
+    /// Decoding failed for the given reason.
     case decodingFailed(reason: String)
+    /// The command has no decoder.
     case unsupportedDecoder
 
     public var errorDescription: String? {
@@ -317,14 +330,21 @@ protocol Decoder {
     func decode(data: Data, unit: MeasurementUnit) -> Result<DecodeResult, DecodeError>
 }
 
+/// A decoded response. Use the helpers of the extension (`measurementResult`, `troubleCode`…) to read it.
 public enum DecodeResult {
+    /// Text (VIN, calibration ID…).
     case stringResult(String)
+    /// A readiness status.
     case statusResult(Status)
+    /// A numeric value.
     case measurementResult(MeasurementResult)
+    /// Trouble codes.
     case troubleCode([TroubleCode])
+    /// On-board monitor test results.
     case measurementMonitor(Monitor)
 }
 
+/// How the data bytes of a command are turned into a value.
 public enum Decoders: Equatable, Encodable {
     case pid
     case status
@@ -865,13 +885,19 @@ public class Monitor {
     }
 }
 
+/// One test of an on-board monitor, with its value and limits.
 public struct MonitorTest {
     public internal(set) var mid: UInt8?
+    /// The test identifier.
     public internal(set) var tid: UInt8?
     public internal(set) var name: String?
+    /// A description of the test.
     public internal(set) var desc: String?
+    /// The measured value.
     public internal(set) var value: MeasurementResult?
+    /// The lowest value allowed for the test to pass.
     public internal(set) var min: Double?
+    /// The highest value allowed for the test to pass.
     public internal(set) var max: Double?
 
     public var passed: Bool {

@@ -7,10 +7,15 @@
 
 import Foundation
 
+/// Errors thrown while parsing or evaluating a ``Formula``.
 public enum FormulaError: Error, LocalizedError, Equatable {
+    /// The formula is not valid.
     case syntax(String)
+    /// The formula reads a byte the answer does not contain.
     case missingByte(String)
+    /// The formula calls an unknown function.
     case unknownFunction(String)
+    /// The result is not a finite number (division by zero…).
     case notANumber
 
     public var errorDescription: String? {
@@ -47,8 +52,10 @@ public struct Formula {
     }
 
     private let root: Node
+    /// The text of the formula.
     public let source: String
 
+    /// Parses a formula; throws ``FormulaError/syntax(_:)`` when it is not valid.
     public init(_ source: String) throws {
         self.source = source
         var parser = Parser(tokens: try Formula.tokenize(source))

@@ -8,6 +8,7 @@
 import Combine
 import Foundation
 
+/// A vehicle saved in the ``Garage``.
 public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public static func == (lhs: Vehicle, rhs: Vehicle) -> Bool {
         lhs.id == rhs.id
@@ -22,6 +23,7 @@ public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public var obdinfo: OBDInfo?
 }
 
+/// A simple store of vehicles, persisted in the user defaults.
 public class Garage: ObservableObject {
     @Published public var garageVehicles: [Vehicle] = []
     @Published public var currentVehicle: Vehicle? {

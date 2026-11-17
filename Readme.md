@@ -125,6 +125,12 @@ Every protocol an ELM327 can speak is handled, with 11 and 29 bit CAN identifier
 > so no ELM327 based library can read them. What *is* possible is talking to early or non-emission modules that
 > use ISO 9141 / KWP2000 or CAN with their own addressing: see [Manufacturer specific data](#manufacturer-specific-data).
 
+### Documentation
+
+The API reference and guides (getting started, connecting, diagnostics, manufacturer specific data, data logging,
+migration) are written with DocC in `Sources/SwiftOBD2/SwiftOBD2.docc`. Build them in Xcode with
+**Product › Build Documentation**; the Swift Package Index also hosts them for each release.
+
 ### Setting Up a Project
 
 1. Create a New Swift Project:

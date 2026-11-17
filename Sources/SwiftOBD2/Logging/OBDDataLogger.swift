@@ -21,13 +21,17 @@ import Foundation
 public final class OBDDataLogger: ObservableObject {
     /// The values read during one polling round.
     public struct Sample {
+        /// When the sample was taken.
         public let date: Date
         /// Seconds since the recording started.
         public let elapsed: TimeInterval
+        /// The values read, by command; failed reads are missing.
         public let values: [OBDCommand: MeasurementResult]
     }
 
+    /// `true` while recording.
     @Published public private(set) var isRecording = false
+    /// The number of samples taken by the current recording.
     @Published public private(set) var sampleCount = 0
 
     /// Called for each sample, on an arbitrary queue.
@@ -51,6 +55,7 @@ public final class OBDDataLogger: ObservableObject {
     private var generation = 0
     private var isActive = false
 
+    /// Creates a logger reading its values through `service`.
     public init(service: OBDService) {
         self.service = service
     }

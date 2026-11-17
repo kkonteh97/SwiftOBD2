@@ -15,14 +15,23 @@ import Combine
 import CoreBluetooth
 import Foundation
 
+/// Errors reported by the ELM327 adapter or detected while talking to it.
 public enum ELM327Error: Error, LocalizedError {
+    /// No protocol could be found to talk to the vehicle.
     case noProtocolFound
+    /// The adapter returned an unexpected answer.
     case invalidResponse(message: String)
+    /// The adapter did not accept its initialisation commands.
     case adapterInitializationFailed
+    /// The vehicle does not answer: the ignition is probably off.
     case ignitionOff
+    /// The requested protocol is not valid.
     case invalidProtocol
+    /// The adapter did not answer in time.
     case timeout
+    /// The connection to the adapter failed.
     case connectionFailed(reason: String)
+    /// An unexpected error.
     case unknownError
     /// The vehicle did not answer the request (`NO DATA`): usually an unsupported PID.
     case noData
@@ -40,6 +49,7 @@ public enum ELM327Error: Error, LocalizedError {
     /// The ECU refused the request (`7F <service> <code>`).
     case negativeResponse(service: UInt8, code: UInt8)
 
+    /// A localized description of the error.
     public var errorDescription: String? {
         switch self {
         case .noProtocolFound:
@@ -111,8 +121,11 @@ public enum ELM327Error: Error, LocalizedError {
 public struct OBDConfiguration {
     /// How aggressively the adapter shortens the time it waits for ECUs to answer (`AT AT`).
     public enum AdaptiveTiming: Int {
+        /// Fixed time-out (`ATAT0`).
         case off = 0
+        /// Default adaptive timing (`ATAT1`).
         case normal = 1
+        /// Aggressive adaptive timing (`ATAT2`): faster, may miss slow ECUs.
         case aggressive = 2
     }
 
@@ -125,6 +138,7 @@ public struct OBDConfiguration {
     /// Longest time to wait while the adapter searches for the vehicle protocol (slow initialisation
     /// of ISO 9141 / KWP2000 alone takes several seconds).
     public var protocolDetectionTimeout: TimeInterval = 20
+    /// How the adapter adapts its time-out to the vehicle response time.
     public var adaptiveTiming: AdaptiveTiming = .normal
     /// How many PIDs to ask for in a single request on CAN vehicles (1 to 6). The library falls
     /// back to one PID per request when the vehicle does not support grouping.
@@ -134,6 +148,7 @@ public struct OBDConfiguration {
     /// ECU are lost: leave it off unless a single ECU answers the PIDs you poll.
     public var stopsAfterFirstResponse: Bool = false
 
+    /// The default configuration (Wi-Fi adapter at `192.168.0.10:35000`).
     public init() {}
 
     public init(wifiHost: String, wifiPort: UInt16 = 35000) {
@@ -747,9 +762,13 @@ enum ECUHeader {
     static let ENGINE = "7E0"
 }
 
+/// What the library learned about the vehicle while connecting.
 public struct OBDInfo: Codable, Hashable {
+    /// The Vehicle Identification Number, when the vehicle reports it.
     public var vin: String?
+    /// The service 01 commands the vehicle supports.
     public var supportedPIDs: [OBDCommand]?
+    /// The protocol used to talk to the vehicle.
     public var obdProtocol: PROTOCOL?
     /// The role of each ECU that answered, indexed by the low byte of its address.
     public var ecuMap: [UInt8: ECUID]?

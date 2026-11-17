@@ -18,13 +18,20 @@ import Combine
 import CoreBluetooth
 import Foundation
 
+/// The state of the connection to the adapter and the vehicle.
 public enum ConnectionState: Sendable {
+    /// Not connected.
     case disconnected
+    /// Connecting to the adapter.
     case connecting
+    /// Connected to the adapter, not to the vehicle yet.
     case connectedToAdapter
+    /// Connected to the vehicle: commands can be sent.
     case connectedToVehicle
+    /// The connection failed.
     case error
 
+    /// A description of the state.
     public var description: String {
         switch self {
         case .disconnected: return "Disconnected"
@@ -35,6 +42,7 @@ public enum ConnectionState: Sendable {
         }
     }
 
+    /// `true` when connected to the adapter or to the vehicle.
     public var isConnected: Bool {
         switch self {
         case .connectedToAdapter, .connectedToVehicle:

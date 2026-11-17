@@ -14,8 +14,11 @@ public struct DiagnosticStatus {
     public let status: Status
     /// Readiness of the monitors during the current drive cycle, when the vehicle reports it.
     public let driveCycleStatus: Status?
+    /// The number of warm-ups since the codes were cleared (PID 30).
     public let warmUpsSinceCleared: Int?
+    /// The distance driven since the codes were cleared (PID 31).
     public let distanceSinceCleared: MeasurementResult?
+    /// The engine run time since the codes were cleared (PID 4E).
     public let timeSinceCleared: MeasurementResult?
     /// Distance travelled with the malfunction lamp on.
     public let distanceWithMIL: MeasurementResult?

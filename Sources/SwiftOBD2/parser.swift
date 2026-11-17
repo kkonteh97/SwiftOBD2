@@ -9,10 +9,14 @@ import Foundation
 
 /// The role of an ECU answering on the diagnostic bus.
 public enum ECUID: UInt8, Codable {
+    /// The engine control module.
     case engine = 0x00
+    /// The transmission control module.
     case transmission = 0x01
+    /// Any other ECU.
     case unknown = 0x02
 
+    /// A description of the ECU.
     public var description: String {
         switch self {
         case .engine:
@@ -25,6 +29,7 @@ public enum ECUID: UInt8, Codable {
     }
 }
 
+/// A message received from an ECU.
 public protocol MessageProtocol {
     var data: Data? { get }
     var ecu: ECUID { get }
@@ -148,7 +153,9 @@ struct CANFrame {
     }
 }
 
+/// Reassembles the lines returned by the adapter on CAN protocols into messages (ISO 15765-2).
 public struct CANParser {
+    /// The messages, one per answering ECU and request.
     public let messages: [Message]
 
     /// - Parameters:
